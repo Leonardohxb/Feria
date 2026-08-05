@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f0fdf4;
+  --surface: #ffffff;
+  --primary: #15803d;
+  --primary-dark: #166534;
+  --primary-light: #dcfce7;
+  --accent: #10b981;
+  --text: #111827;
+  --muted: #6b7280;
+  --border: #d1fae5;
+  --danger: #dc2626;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar personalizado */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: #86efac;
+  border-radius: 3px;
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease forwards;
+}
+.animate-spin {
+  animation: spin 0.8s linear infinite;
+}
+
+/* Cards */
+.card {
+  background: var(--surface);
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.04);
+  padding: 1.5rem;
+}
+
+/* Badge de rol */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.badge-admin  { background: #fef9c3; color: #854d0e; }
+.badge-cajero { background: #dcfce7; color: #166534; }
+.badge-dueño  { background: #ede9fe; color: #5b21b6; }
