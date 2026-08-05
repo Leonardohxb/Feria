@@ -5,19 +5,17 @@ import supabase from '@/lib/supabaseClient';
 import { useAuth } from '@/context/AuthContext';
 
 export default function NuevoViajePage() {
-    const { user } = useAuth();
-    const router   = useRouter();
+    const { user }  = useAuth();
+    const router    = useRouter();
     const [form, setForm] = useState({
-        nombre:      '',
-        descripcion: '',
+        nombre:       '',
+        descripcion:  '',
         fecha_inicio: new Date().toISOString().split('T')[0],
     });
     const [loading, setLoading] = useState(false);
-    const [error, setError]     = useState('');
+    const [error,   setError]   = useState('');
 
-    function set(key) {
-        return (e) => setForm(f => ({ ...f, [key]: e.target.value }));
-    }
+    function set(key) { return e => setForm(f => ({ ...f, [key]: e.target.value })); }
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -39,72 +37,62 @@ export default function NuevoViajePage() {
     }
 
     return (
-        <div className="animate-fade-in max-w-lg mx-auto">
-            <div className="mb-6 flex items-center gap-3">
-                <button
-                    onClick={() => router.push('/dashboard')}
-                    className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                    ← Volver
-                </button>
-                <h1 className="text-xl font-bold text-green-900">Nuevo Viaje</h1>
-            </div>
+        <div className="animate-fade-in max-w-md mx-auto">
+
+            {/* Back */}
+            <button
+                onClick={() => router.push('/dashboard')}
+                className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-800 transition-colors mb-6"
+            >
+                <span>←</span> Mis viajes
+            </button>
+
+            <h1 className="text-xl font-semibold text-stone-900 mb-6">Nuevo viaje</h1>
 
             <div className="card">
                 <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Nombre del viaje *
+                        <label className="block text-sm font-medium text-stone-700 mb-1.5">
+                            Nombre del viaje <span className="text-stone-400 font-normal">*</span>
                         </label>
                         <input
-                            type="text"
-                            required
-                            placeholder="ej: Viaje Barquisimeto agosto 2026"
-                            value={form.nombre}
-                            onChange={set('nombre')}
-                            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                            type="text" required
+                            placeholder="ej: Barquisimeto — agosto 2026"
+                            value={form.nombre} onChange={set('nombre')}
+                            className="auth-input"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Descripción <span className="text-gray-400 font-normal">(opcional)</span>
+                        <label className="block text-sm font-medium text-stone-700 mb-1.5">
+                            Descripción <span className="text-stone-400 font-normal">(opcional)</span>
                         </label>
                         <textarea
                             rows={2}
-                            placeholder="Notas sobre el destino, productos a buscar..."
-                            value={form.descripcion}
-                            onChange={set('descripcion')}
-                            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none transition-all"
+                            placeholder="Destino, productos objetivo, notas..."
+                            value={form.descripcion} onChange={set('descripcion')}
+                            className="auth-input resize-none"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Fecha de inicio *
+                        <label className="block text-sm font-medium text-stone-700 mb-1.5">
+                            Fecha de inicio <span className="text-stone-400 font-normal">*</span>
                         </label>
                         <input
-                            type="date"
-                            required
-                            value={form.fecha_inicio}
-                            onChange={set('fecha_inicio')}
-                            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                            type="date" required
+                            value={form.fecha_inicio} onChange={set('fecha_inicio')}
+                            className="auth-input"
                         />
                     </div>
 
-                    {error && (
-                        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-                            {error}
-                        </p>
-                    )}
+                    {error && <p className="error-box">{error}</p>}
 
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full bg-green-700 hover:bg-green-800 disabled:opacity-60 disabled:cursor-not-allowed
-                                   text-white font-semibold py-3 rounded-xl transition-all text-sm shadow-sm"
-                    >
-                        {loading ? 'Creando viaje...' : 'Crear Viaje 🚛'}
+                    <button type="submit" disabled={loading} className="btn-primary">
+                        {loading
+                            ? <><span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> Creando...</>
+                            : 'Crear viaje'}
                     </button>
                 </form>
             </div>
