@@ -34,25 +34,25 @@ export default function LoginPage() {
     }
 
     return (
-        <main className="min-h-screen bg-[#fafaf9] flex items-center justify-center px-4 py-12">
+        <main className="min-h-screen bg-[#fafaf9] dark:bg-[#0f172a] flex items-center justify-center px-4 py-12">
             <div className="w-full max-w-sm animate-fade-in">
 
                 {/* Logo */}
                 <div className="flex flex-col items-center mb-8">
-                    <div className="w-14 h-14 bg-green-700 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
+                    <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
                         <span className="text-2xl">🥦</span>
                     </div>
-                    <h1 className="text-xl font-semibold text-stone-900 tracking-tight">Feria de Vegetales</h1>
-                    <p className="text-sm text-stone-500 mt-1">Control de viajes y costos</p>
+                    <h1 className="text-xl font-semibold text-stone-900 dark:text-slate-100 tracking-tight">Feria de Vegetales</h1>
+                    <p className="text-sm text-stone-500 dark:text-slate-400 mt-1">Control de viajes y costos</p>
                 </div>
 
                 {/* Card */}
                 <div className="card">
-                    <p className="text-base font-semibold text-stone-800 mb-5">Iniciar sesión</p>
+                    <p className="text-base font-semibold text-stone-800 dark:text-slate-200 mb-5">Iniciar sesión</p>
 
                     <form onSubmit={handleSubmit} noValidate className="space-y-4">
                         <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-stone-700 mb-1.5">
+                            <label htmlFor="email" className="block text-sm font-medium text-stone-700 dark:text-slate-300 mb-1.5">
                                 Correo electrónico
                             </label>
                             <input
@@ -64,10 +64,10 @@ export default function LoginPage() {
 
                         <div>
                             <div className="flex items-center justify-between mb-1.5">
-                                <label htmlFor="password" className="text-sm font-medium text-stone-700">
+                                <label htmlFor="password" className="text-sm font-medium text-stone-700 dark:text-slate-300">
                                     Contraseña
                                 </label>
-                                <Link href="/forgot-password" className="text-xs text-green-700 hover:text-green-800 hover:underline transition-colors">
+                                <Link href="/forgot-password" className="text-xs text-blue-600 hover:text-blue-700 hover:underline transition-colors">
                                     ¿La olvidaste?
                                 </Link>
                             </div>
@@ -87,9 +87,9 @@ export default function LoginPage() {
                         </button>
                     </form>
 
-                    <p className="mt-5 text-center text-sm text-stone-500">
+                    <p className="mt-5 text-center text-sm text-stone-500 dark:text-slate-400">
                         ¿No tienes cuenta?{' '}
-                        <Link href="/registro" className="font-medium text-green-700 hover:text-green-800 hover:underline transition-colors">
+                        <Link href="/registro" className="font-medium text-blue-600 hover:text-blue-700 hover:underline transition-colors">
                             Regístrate
                         </Link>
                     </p>

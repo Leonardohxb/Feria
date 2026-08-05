@@ -42,19 +42,19 @@ export default function NuevoViajePage() {
             {/* Back */}
             <button
                 onClick={() => router.push('/dashboard')}
-                className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-800 transition-colors mb-6"
+                className="flex items-center gap-1.5 text-sm text-stone-500 dark:text-slate-400 hover:text-stone-800 dark:hover:text-slate-200 transition-colors mb-6"
             >
                 <span>←</span> Mis viajes
             </button>
 
-            <h1 className="text-xl font-semibold text-stone-900 mb-6">Nuevo viaje</h1>
+            <h1 className="text-xl font-semibold text-stone-900 dark:text-slate-100 mb-6">Nuevo viaje</h1>
 
             <div className="card">
                 <form onSubmit={handleSubmit} className="space-y-5" noValidate>
 
                     <div>
-                        <label className="block text-sm font-medium text-stone-700 mb-1.5">
-                            Nombre del viaje <span className="text-stone-400 font-normal">*</span>
+                        <label className="block text-sm font-medium text-stone-700 dark:text-slate-300 mb-1.5">
+                            Nombre del viaje <span className="text-stone-400 dark:text-slate-500 font-normal">*</span>
                         </label>
                         <input
                             type="text" required
@@ -65,8 +65,8 @@ export default function NuevoViajePage() {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-stone-700 mb-1.5">
-                            Descripción <span className="text-stone-400 font-normal">(opcional)</span>
+                        <label className="block text-sm font-medium text-stone-700 dark:text-slate-300 mb-1.5">
+                            Descripción <span className="text-stone-400 dark:text-slate-500 font-normal">(opcional)</span>
                         </label>
                         <textarea
                             rows={2}
@@ -77,8 +77,8 @@ export default function NuevoViajePage() {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-stone-700 mb-1.5">
-                            Fecha de inicio <span className="text-stone-400 font-normal">*</span>
+                        <label className="block text-sm font-medium text-stone-700 dark:text-slate-300 mb-1.5">
+                            Fecha de inicio <span className="text-stone-400 dark:text-slate-500 font-normal">*</span>
                         </label>
                         <input
                             type="date" required

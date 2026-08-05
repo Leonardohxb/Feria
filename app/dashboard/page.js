@@ -29,10 +29,10 @@ export default function DashboardPage() {
             {/* Cabecera */}
             <div className="flex items-start justify-between gap-4">
                 <div>
-                    <h1 className="text-xl font-semibold text-stone-900 text-balance">
+                    <h1 className="text-xl font-semibold text-stone-900 dark:text-slate-100 text-balance">
                         {saludo}, {profile?.full_name?.split(' ')[0] ?? 'bienvenido'}
                     </h1>
-                    <p className="text-sm text-stone-500 mt-0.5">
+                    <p className="text-sm text-stone-500 dark:text-slate-400 mt-0.5">
                         {new Date().toLocaleDateString('es-VE', {
                             weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
                         })}
@@ -51,17 +51,17 @@ export default function DashboardPage() {
             {viajes.length > 0 && (
                 <div className="grid grid-cols-2 gap-3">
                     <div className="card flex items-center gap-3 py-3 px-4">
-                        <div className="w-9 h-9 rounded-lg bg-green-50 border border-green-100 flex items-center justify-center text-lg shrink-0">🚛</div>
+                        <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-lg shrink-0">🚛</div>
                         <div>
-                            <p className="text-xl font-semibold text-stone-900 tabular">{viajes.length}</p>
-                            <p className="text-xs text-stone-500">Viajes totales</p>
+                            <p className="text-xl font-semibold text-stone-900 dark:text-slate-100 tabular">{viajes.length}</p>
+                            <p className="text-xs text-stone-500 dark:text-slate-400">Viajes totales</p>
                         </div>
                     </div>
                     <div className="card flex items-center gap-3 py-3 px-4">
-                        <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-lg shrink-0">📍</div>
+                        <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-lg shrink-0">📍</div>
                         <div>
-                            <p className="text-xl font-semibold text-stone-900 tabular">{activos}</p>
-                            <p className="text-xs text-stone-500">En curso</p>
+                            <p className="text-xl font-semibold text-stone-900 dark:text-slate-100 tabular">{activos}</p>
+                            <p className="text-xs text-stone-500 dark:text-slate-400">En curso</p>
                         </div>
                     </div>
                 </div>
@@ -69,7 +69,7 @@ export default function DashboardPage() {
 
             {/* Lista */}
             <section>
-                <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-3">
+                <h2 className="text-sm font-semibold text-stone-500 dark:text-slate-400 uppercase tracking-wider mb-3">
                     Tus viajes
                 </h2>
 
@@ -88,8 +88,8 @@ export default function DashboardPage() {
                 ) : viajes.length === 0 ? (
                     <div className="card text-center py-14 border-dashed">
                         <p className="text-4xl mb-3">🚛</p>
-                        <p className="text-stone-700 font-medium mb-1">Sin viajes todavía</p>
-                        <p className="text-sm text-stone-400 mb-6 max-w-xs mx-auto text-balance">
+                        <p className="text-stone-700 dark:text-slate-300 font-medium mb-1">Sin viajes todavía</p>
+                        <p className="text-sm text-stone-400 dark:text-slate-500 mb-6 max-w-xs mx-auto text-balance">
                             Crea tu primer viaje para comenzar a registrar compras, ventas y costos.
                         </p>
                         <button
@@ -106,24 +106,24 @@ export default function DashboardPage() {
                             <button
                                 key={v.id}
                                 onClick={() => router.push(`/dashboard/viajes/${v.id}`)}
-                                className="w-full card text-left hover:border-green-300 hover:shadow-sm group transition-all py-3.5 px-4"
+                                className="w-full card text-left hover:border-blue-300 hover:shadow-sm group transition-all py-3.5 px-4"
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-lg bg-stone-50 border border-stone-200 flex items-center justify-center text-base shrink-0 group-hover:bg-green-50 group-hover:border-green-200 transition-colors">
+                                    <div className="w-9 h-9 rounded-lg bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 flex items-center justify-center text-base shrink-0 group-hover:bg-blue-50 group-hover:border-blue-200 transition-colors">
                                         🚛
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2">
-                                            <p className="font-medium text-stone-900 text-sm truncate group-hover:text-green-800 transition-colors">
+                                            <p className="font-medium text-stone-900 dark:text-slate-100 text-sm truncate group-hover:text-blue-700 transition-colors">
                                                 {v.nombre}
                                             </p>
                                         </div>
-                                        <p className="text-xs text-stone-400 mt-0.5">
+                                        <p className="text-xs text-stone-400 dark:text-slate-500 mt-0.5">
                                             {new Date(v.fecha_inicio + 'T00:00:00').toLocaleDateString('es-VE', { day: 'numeric', month: 'short', year: 'numeric' })}
                                             {v.fecha_fin && ` — ${new Date(v.fecha_fin + 'T00:00:00').toLocaleDateString('es-VE', { day: 'numeric', month: 'short' })}`}
                                         </p>
                                     </div>
-                                    <span className={`shrink-0 badge text-xs ${v.estado === 'activo' ? 'badge-green' : 'badge-gray'}`}>
+                                    <span className={`shrink-0 badge text-xs ${v.estado === 'activo' ? 'badge-blue' : 'badge-gray'}`}>
                                         {v.estado === 'activo' ? 'Activo' : 'Cerrado'}
                                     </span>
                                 </div>

@@ -25,7 +25,7 @@ function fmtDate(d) { return new Date(d + 'T00:00:00').toLocaleDateString('es-VE
 function Spinner() {
     return (
         <div className="py-10 flex justify-center">
-            <div className="w-6 h-6 rounded-full border-[3px] border-stone-200 border-t-green-700 animate-spin" />
+            <div className="w-6 h-6 rounded-full border-[3px] border-stone-200 border-t-blue-600 animate-spin" />
         </div>
     );
 }
@@ -33,7 +33,7 @@ function Spinner() {
 function EmptyState({ msg }) {
     return (
         <div className="py-12 text-center">
-            <p className="text-stone-400 text-sm">{msg}</p>
+            <p className="text-stone-400 dark:text-slate-500 text-sm">{msg}</p>
         </div>
     );
 }
@@ -58,7 +58,7 @@ function AddButton({ onClick, open }) {
             className={`text-sm font-medium px-3 py-1.5 rounded-lg border transition-colors ${
                 open
                     ? 'border-stone-200 text-stone-500 hover:bg-stone-50'
-                    : 'border-green-600 text-green-700 hover:bg-green-50'
+                    : 'border-blue-600 text-blue-600 hover:bg-blue-50'
             }`}
         >
             {open ? 'Cancelar' : '+ Agregar'}
@@ -69,11 +69,11 @@ function AddButton({ onClick, open }) {
 /* ── Item row ───────────────────────────────────────────── */
 function ItemRow({ title, line, date, note, onDelete }) {
     return (
-        <div className="flex items-start gap-3 py-3 px-4 border-b border-stone-100 last:border-0 group">
+        <div className="flex items-start gap-3 py-3 px-4 border-b border-stone-100 dark:border-slate-700 last:border-0 group">
             <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-stone-800">{title}</p>
-                <p className="text-xs text-stone-500 mt-0.5 tabular">{line}</p>
-                <p className="text-xs text-stone-400 mt-0.5">{date}{note ? ` · ${note}` : ''}</p>
+                <p className="text-sm font-medium text-stone-800 dark:text-slate-200">{title}</p>
+                <p className="text-xs text-stone-500 dark:text-slate-400 mt-0.5 tabular">{line}</p>
+                <p className="text-xs text-stone-400 dark:text-slate-500 mt-0.5">{date}{note ? ` · ${note}` : ''}</p>
             </div>
             {onDelete && (
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity">
@@ -87,9 +87,9 @@ function ItemRow({ title, line, date, note, onDelete }) {
 /* ── Section total badge ─────────────────────────────────── */
 function SectionHeader({ count, total, color, children }) {
     return (
-        <div className="flex items-center justify-between py-3 px-4 border-b border-stone-100">
+        <div className="flex items-center justify-between py-3 px-4 border-b border-stone-100 dark:border-slate-700">
             <div className="flex items-center gap-2">
-                <p className="text-sm font-medium text-stone-700">{count} registro{count !== 1 ? 's' : ''}</p>
+                <p className="text-sm font-medium text-stone-700 dark:text-slate-300">{count} registro{count !== 1 ? 's' : ''}</p>
             </div>
             <div className="flex items-center gap-3">
                 <span className={`text-sm font-semibold tabular ${color}`}>${fmt(total)}</span>
@@ -102,7 +102,7 @@ function SectionHeader({ count, total, color, children }) {
 /* ── Inline form ─────────────────────────────────────────── */
 function InlineForm({ children, onSubmit, saving, label }) {
     return (
-        <form onSubmit={onSubmit} className="p-4 bg-stone-50 border-b border-stone-200 space-y-3">
+        <form onSubmit={onSubmit} className="p-4 bg-stone-50 dark:bg-slate-800 border-b border-stone-200 dark:border-slate-700 space-y-3">
             <div className="grid grid-cols-2 gap-2.5">{children}</div>
             <button
                 type="submit" disabled={saving}
@@ -226,7 +226,7 @@ function VentasTab({ viajeId, readOnly }) {
 
     return (
         <div className="card p-0 overflow-hidden">
-            <SectionHeader count={items.length} total={total} color="text-green-700">
+            <SectionHeader count={items.length} total={total} color="text-blue-600">
                 {!readOnly && <AddButton onClick={() => setShowForm(s => !s)} open={showForm} />}
             </SectionHeader>
 
@@ -363,7 +363,7 @@ function ResumenTab({ viajeId }) {
             {/* Tres totales */}
             <div className="grid grid-cols-3 gap-3">
                 {[
-                    { label: 'Ventas',  value: totalVentas,  color: 'text-green-700',  border: 'border-green-200',  bg: 'bg-green-50'  },
+                    { label: 'Ventas',  value: totalVentas,  color: 'text-blue-600',   border: 'border-blue-200',   bg: 'bg-blue-50'   },
                     { label: 'Compras', value: totalCompras, color: 'text-orange-600', border: 'border-orange-200', bg: 'bg-orange-50' },
                     { label: 'Costos',  value: totalCostos,  color: 'text-blue-600',   border: 'border-blue-200',   bg: 'bg-blue-50'   },
                 ].map(s => (
@@ -376,20 +376,20 @@ function ResumenTab({ viajeId }) {
 
             {/* Cálculo */}
             <div className="card p-0 overflow-hidden">
-                <div className="px-4 py-3 border-b border-stone-100">
-                    <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Cálculo de ganancia</p>
+                <div className="px-4 py-3 border-b border-stone-100 dark:border-slate-700">
+                    <p className="text-xs font-semibold text-stone-500 dark:text-slate-400 uppercase tracking-wider">Cálculo de ganancia</p>
                 </div>
-                <div className="divide-y divide-stone-100">
-                    <Row label="Ingresos por ventas"  value={`+ $${fmt(totalVentas)}`}  color="text-green-700" />
+                <div className="divide-y divide-stone-100 dark:divide-slate-700">
+                    <Row label="Ingresos por ventas"  value={`+ $${fmt(totalVentas)}`}  color="text-blue-600" />
                     <Row label="Costo de compras"      value={`− $${fmt(totalCompras)}`} color="text-orange-600" />
                     <Row label="Ganancia bruta" bold
                         value={(bruta >= 0 ? '+ ' : '') + `$${fmt(bruta)}`}
-                        color={bruta >= 0 ? 'text-green-700' : 'text-red-600'} />
+                        color={bruta >= 0 ? 'text-blue-600' : 'text-red-600'} />
                     <Row label="Costos adicionales"   value={`− $${fmt(totalCostos)}`}  color="text-blue-600" />
-                    <div className="px-4 py-4 bg-stone-50">
+                    <div className="px-4 py-4 bg-stone-50 dark:bg-slate-800">
                         <div className="flex items-center justify-between">
-                            <p className="text-sm font-semibold text-stone-900">Ganancia neta</p>
-                            <p className={`text-xl font-bold tabular ${neta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                            <p className="text-sm font-semibold text-stone-900 dark:text-slate-100">Ganancia neta</p>
+                            <p className={`text-xl font-bold tabular ${neta >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
                                 {neta >= 0 ? '+' : ''}${fmt(neta)}
                             </p>
                         </div>
@@ -405,15 +405,15 @@ function ResumenTab({ viajeId }) {
                 </div>
             )}
             {!noData && neta < 0 && (
-                <div className="card border-red-200 bg-red-50">
-                    <p className="text-sm text-red-700">
+                <div className="card border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950">
+                    <p className="text-sm text-red-700 dark:text-red-400">
                         Pérdida de <span className="font-semibold tabular">${fmt(Math.abs(neta))}</span>. Los costos totales superan los ingresos.
                     </p>
                 </div>
             )}
             {!noData && neta >= 0 && (
-                <div className="card border-green-200 bg-green-50">
-                    <p className="text-sm text-green-800">
+                <div className="card border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950">
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
                         Ganancia neta: <span className="font-semibold tabular">${fmt(neta)}</span>
                     </p>
                 </div>
@@ -425,7 +425,7 @@ function ResumenTab({ viajeId }) {
 function Row({ label, value, color, bold }) {
     return (
         <div className="flex items-center justify-between px-4 py-3">
-            <p className={`text-sm ${bold ? 'font-semibold text-stone-800' : 'text-stone-600'}`}>{label}</p>
+            <p className={`text-sm ${bold ? 'font-semibold text-stone-800 dark:text-slate-200' : 'text-stone-600 dark:text-slate-400'}`}>{label}</p>
             <p className={`text-sm font-semibold tabular ${color}`}>{value}</p>
         </div>
     );
@@ -458,7 +458,7 @@ export default function ViajeDetallePage() {
     if (loading) {
         return (
             <div className="flex justify-center py-20">
-                <div className="w-7 h-7 rounded-full border-[3px] border-stone-200 border-t-green-700 animate-spin" />
+                <div className="w-7 h-7 rounded-full border-[3px] border-stone-200 border-t-blue-600 animate-spin" />
             </div>
         );
     }
@@ -467,7 +467,7 @@ export default function ViajeDetallePage() {
         return (
             <div className="text-center py-20">
                 <p className="text-stone-400 text-sm">Viaje no encontrado.</p>
-                <button onClick={() => router.push('/dashboard')} className="mt-4 text-sm text-green-700 hover:underline">
+                <button onClick={() => router.push('/dashboard')} className="mt-4 text-sm text-blue-600 hover:underline">
                     Volver
                 </button>
             </div>
@@ -483,7 +483,7 @@ export default function ViajeDetallePage() {
             <div>
                 <button
                     onClick={() => router.push('/dashboard')}
-                    className="text-xs text-stone-400 hover:text-stone-700 transition-colors mb-3 flex items-center gap-1"
+                    className="text-xs text-stone-400 dark:text-slate-500 hover:text-stone-700 dark:hover:text-slate-300 transition-colors mb-3 flex items-center gap-1"
                 >
                     ← Mis viajes
                 </button>
@@ -491,15 +491,15 @@ export default function ViajeDetallePage() {
                 <div className="flex items-start justify-between gap-3">
                     <div>
                         <div className="flex items-center gap-2.5 flex-wrap">
-                            <h1 className="text-lg font-semibold text-stone-900">{viaje.nombre}</h1>
-                            <span className={`badge text-xs ${isClosed ? 'badge-gray' : 'badge-green'}`}>
+                            <h1 className="text-lg font-semibold text-stone-900 dark:text-slate-100">{viaje.nombre}</h1>
+                            <span className={`badge text-xs ${isClosed ? 'badge-gray' : 'badge-blue'}`}>
                                 {isClosed ? 'Cerrado' : 'Activo'}
                             </span>
                         </div>
                         {viaje.descripcion && (
-                            <p className="text-sm text-stone-500 mt-1">{viaje.descripcion}</p>
+                            <p className="text-sm text-stone-500 dark:text-slate-400 mt-1">{viaje.descripcion}</p>
                         )}
-                        <p className="text-xs text-stone-400 mt-1">
+                        <p className="text-xs text-stone-400 dark:text-slate-500 mt-1">
                             Inicio: {fmtDate(viaje.fecha_inicio)}
                             {viaje.fecha_fin && ` · Fin: ${fmtDate(viaje.fecha_fin)}`}
                         </p>
@@ -509,7 +509,7 @@ export default function ViajeDetallePage() {
                         <button
                             onClick={handleCerrar}
                             disabled={closing}
-                            className="shrink-0 text-xs font-medium text-stone-500 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg border border-stone-200 hover:border-red-200 transition-colors disabled:opacity-50"
+                            className="shrink-0 text-xs font-medium text-stone-500 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg border border-stone-200 dark:border-slate-700 hover:border-red-200 transition-colors disabled:opacity-50"
                         >
                             {closing ? '...' : 'Cerrar viaje'}
                         </button>
@@ -518,15 +518,15 @@ export default function ViajeDetallePage() {
             </div>
 
             {/* Tabs — underline style */}
-            <div className="flex border-b border-stone-200 gap-0">
+            <div className="flex border-b border-stone-200 dark:border-slate-700 gap-0">
                 {TABS.map(tab => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                             activeTab === tab.id
-                                ? 'border-green-600 text-green-700'
-                                : 'border-transparent text-stone-500 hover:text-stone-800 hover:border-stone-300'
+                                ? 'border-blue-600 text-blue-600'
+                                : 'border-transparent text-stone-500 dark:text-slate-400 hover:text-stone-800 dark:hover:text-slate-200 hover:border-stone-300'
                         }`}
                     >
                         {tab.label}
