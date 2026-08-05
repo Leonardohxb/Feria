@@ -9,16 +9,16 @@ const PUBLIC_ROUTES = ['/login', '/registro', '/forgot-password', '/reset-passwo
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-    const [user, setUser] = useState(null);
+    const [user, setUser]       = useState(null);
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
-    const router = useRouter();
+    const router   = useRouter();
     const pathname = usePathname();
 
     async function fetchProfile(userId) {
         const { data, error } = await supabase
             .from('profiles')
-            .select('role, full_name')
+            .select('full_name')
             .eq('id', userId)
             .single();
         if (error) {
@@ -32,8 +32,7 @@ export function AuthProvider({ children }) {
         supabase.auth.getSession().then(async ({ data: { session } }) => {
             if (session?.user) {
                 setUser(session.user);
-                const profileData = await fetchProfile(session.user.id);
-                setProfile(profileData);
+                setProfile(await fetchProfile(session.user.id));
             }
             setLoading(false);
         });
@@ -42,8 +41,7 @@ export function AuthProvider({ children }) {
             async (_event, session) => {
                 if (session?.user) {
                     setUser(session.user);
-                    const profileData = await fetchProfile(session.user.id);
-                    setProfile(profileData);
+                    setProfile(await fetchProfile(session.user.id));
                 } else {
                     setUser(null);
                     setProfile(null);
@@ -57,8 +55,7 @@ export function AuthProvider({ children }) {
 
     useEffect(() => {
         if (loading) return;
-        const isPublic = PUBLIC_ROUTES.includes(pathname);
-        if (!user && !isPublic) {
+        if (!user && !PUBLIC_ROUTES.includes(pathname)) {
             router.replace('/login');
         }
     }, [user, loading, pathname, router]);

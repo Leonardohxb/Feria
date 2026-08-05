@@ -1,35 +1,24 @@
 -- ============================================================
--- FERIA DE VEGETALES — Schema completo para Supabase
+-- FERIA DE VEGETALES — Schema para Supabase
 -- Ejecutar en: Supabase Dashboard > SQL Editor > New Query
 -- ============================================================
 
 
 -- ============================================================
 -- 1. TABLA: profiles
---    Extiende auth.users con rol y nombre completo.
---    Se crea automáticamente cuando un usuario se registra.
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS public.profiles (
-  id          UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  full_name   TEXT,
-  role        TEXT NOT NULL DEFAULT 'cajero' CHECK (role IN ('cajero', 'admin', 'dueño')),
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id         UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  full_name  TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Índice para búsquedas por rol
-CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);
-
--- Comentarios descriptivos
-COMMENT ON TABLE public.profiles IS 'Perfiles extendidos de usuarios. Se crea automáticamente al registrarse.';
-COMMENT ON COLUMN public.profiles.role IS 'Rol del usuario: cajero, admin o dueño';
+COMMENT ON TABLE public.profiles IS 'Perfil del dueño de la feria.';
 
 
 -- ============================================================
 -- 2. TRIGGER: crear perfil automáticamente al registrarse
---    Cuando Supabase Auth crea un usuario, se inserta
---    automáticamente una fila en profiles.
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -39,17 +28,12 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  INSERT INTO public.profiles (id, full_name, role)
-  VALUES (
-    NEW.id,
-    NEW.raw_user_meta_data ->> 'full_name',
-    'cajero'  -- rol por defecto
-  );
+  INSERT INTO public.profiles (id, full_name)
+  VALUES (NEW.id, NEW.raw_user_meta_data ->> 'full_name');
   RETURN NEW;
 END;
 $$;
 
--- Eliminar trigger si ya existe (evita error en re-ejecución)
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 
 CREATE TRIGGER on_auth_user_created
@@ -59,184 +43,186 @@ CREATE TRIGGER on_auth_user_created
 
 
 -- ============================================================
--- 3. TRIGGER: actualizar updated_at automáticamente
+-- 3. TABLA: viajes
+--    Unidad central. Cada viaje agrupa compras, ventas y costos.
 -- ============================================================
 
-CREATE OR REPLACE FUNCTION public.set_updated_at()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS set_profiles_updated_at ON public.profiles;
-
-CREATE TRIGGER set_profiles_updated_at
-  BEFORE UPDATE ON public.profiles
-  FOR EACH ROW
-  EXECUTE FUNCTION public.set_updated_at();
-
-
--- ============================================================
--- 4. TABLA: cierres_caja
---    Registra el cierre de turno de cada cajero.
--- ============================================================
-
-CREATE TABLE IF NOT EXISTS public.cierres_caja (
-  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  cajero_id             UUID NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
-  cajero_nombre         TEXT NOT NULL,
-  turno_inicio          TIMESTAMPTZ NOT NULL,
-  turno_fin             TIMESTAMPTZ NOT NULL,
-  total_ventas_usd      NUMERIC(12, 2) NOT NULL DEFAULT 0,
-  total_ventas_bs       NUMERIC(14, 2) NOT NULL DEFAULT 0,
-  efectivo_usd_contado  NUMERIC(12, 2) NOT NULL DEFAULT 0,
-  diferencia_usd        NUMERIC(12, 2) NOT NULL DEFAULT 0,
-  tasa_bcv              NUMERIC(10, 4) NOT NULL,
-  notas                 TEXT,
-  alerta                BOOLEAN NOT NULL DEFAULT FALSE,  -- true si diferencia > umbral
-  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS public.viajes (
+  id           UUID  PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      UUID  NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  nombre       TEXT  NOT NULL,
+  descripcion  TEXT,
+  fecha_inicio DATE  NOT NULL DEFAULT CURRENT_DATE,
+  fecha_fin    DATE,
+  estado       TEXT  NOT NULL DEFAULT 'activo' CHECK (estado IN ('activo', 'cerrado')),
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Índices útiles para reportes y listados
-CREATE INDEX IF NOT EXISTS idx_cierres_cajero    ON public.cierres_caja(cajero_id);
-CREATE INDEX IF NOT EXISTS idx_cierres_fecha     ON public.cierres_caja(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_cierres_alerta    ON public.cierres_caja(alerta) WHERE alerta = TRUE;
+CREATE INDEX IF NOT EXISTS idx_viajes_user    ON public.viajes(user_id);
+CREATE INDEX IF NOT EXISTS idx_viajes_estado  ON public.viajes(estado);
 
--- Comentarios
-COMMENT ON TABLE  public.cierres_caja IS 'Cierres de turno de caja registrados por los cajeros.';
-COMMENT ON COLUMN public.cierres_caja.diferencia_usd IS 'total_ventas_usd - efectivo_usd_contado (puede ser negativo)';
-COMMENT ON COLUMN public.cierres_caja.alerta IS 'TRUE si |diferencia_usd| supera el umbral configurado en n8n';
-COMMENT ON COLUMN public.cierres_caja.tasa_bcv IS 'Tasa BCV USD/Bs del día en que se realizó el cierre';
+COMMENT ON TABLE  public.viajes        IS 'Cada viaje que realiza el dueño para comprar y vender hortalizas.';
+COMMENT ON COLUMN public.viajes.estado IS 'activo: en curso. cerrado: finalizado, se calcula la ganancia.';
 
 
 -- ============================================================
--- 5. ROW LEVEL SECURITY (RLS)
---    Protege las tablas: cada usuario solo ve lo suyo,
---    admins y dueños ven todo.
+-- 4. TABLA: compras
+--    Lo que el dueño compró a los proveedores en el viaje.
 -- ============================================================
 
--- --- profiles ---
+CREATE TABLE IF NOT EXISTS public.compras (
+  id               UUID           PRIMARY KEY DEFAULT gen_random_uuid(),
+  viaje_id         UUID           NOT NULL REFERENCES public.viajes(id) ON DELETE CASCADE,
+  producto         TEXT           NOT NULL,
+  cantidad         NUMERIC(10, 2) NOT NULL CHECK (cantidad > 0),
+  unidad           TEXT           NOT NULL DEFAULT 'kg',
+  precio_unitario  NUMERIC(10, 2) NOT NULL CHECK (precio_unitario >= 0),
+  fecha            DATE           NOT NULL DEFAULT CURRENT_DATE,
+  notas            TEXT,
+  created_at       TIMESTAMPTZ    NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_compras_viaje ON public.compras(viaje_id);
+
+COMMENT ON TABLE  public.compras                  IS 'Compras de hortalizas realizadas en el viaje.';
+COMMENT ON COLUMN public.compras.precio_unitario  IS 'Precio pagado por unidad de medida en USD.';
+
+
+-- ============================================================
+-- 5. TABLA: ventas
+--    Lo que el dueño vendió durante o después del viaje.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS public.ventas (
+  id               UUID           PRIMARY KEY DEFAULT gen_random_uuid(),
+  viaje_id         UUID           NOT NULL REFERENCES public.viajes(id) ON DELETE CASCADE,
+  producto         TEXT           NOT NULL,
+  cantidad         NUMERIC(10, 2) NOT NULL CHECK (cantidad > 0),
+  unidad           TEXT           NOT NULL DEFAULT 'kg',
+  precio_unitario  NUMERIC(10, 2) NOT NULL CHECK (precio_unitario >= 0),
+  fecha            DATE           NOT NULL DEFAULT CURRENT_DATE,
+  notas            TEXT,
+  created_at       TIMESTAMPTZ    NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ventas_viaje ON public.ventas(viaje_id);
+
+COMMENT ON TABLE public.ventas IS 'Ventas de hortalizas realizadas durante el viaje.';
+
+
+-- ============================================================
+-- 6. TABLA: costos_adicionales
+--    Gastos operativos del viaje: obreros, comida, hotel, gasolina, etc.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS public.costos_adicionales (
+  id           UUID           PRIMARY KEY DEFAULT gen_random_uuid(),
+  viaje_id     UUID           NOT NULL REFERENCES public.viajes(id) ON DELETE CASCADE,
+  tipo         TEXT           NOT NULL,
+  descripcion  TEXT           NOT NULL,
+  monto        NUMERIC(10, 2) NOT NULL CHECK (monto >= 0),
+  fecha        DATE           NOT NULL DEFAULT CURRENT_DATE,
+  created_at   TIMESTAMPTZ    NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_costos_viaje ON public.costos_adicionales(viaje_id);
+
+COMMENT ON TABLE  public.costos_adicionales  IS 'Gastos adicionales del viaje: administración, obreros, comida, hotel, gasolina, etc.';
+COMMENT ON COLUMN public.costos_adicionales.tipo IS 'Categoría: administracion, obreros, comida, hotel, gasolina, gasoil, transporte, otro.';
+
+
+-- ============================================================
+-- 7. ROW LEVEL SECURITY
+--    El dueño solo accede a sus propios datos.
+-- ============================================================
+
+-- profiles
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- Cada usuario ve y edita solo su propio perfil
-CREATE POLICY "perfil_propio_select"
-  ON public.profiles FOR SELECT
-  USING (auth.uid() = id);
-
-CREATE POLICY "perfil_propio_update"
-  ON public.profiles FOR UPDATE
+CREATE POLICY "profiles_own"
+  ON public.profiles FOR ALL
   USING (auth.uid() = id)
   WITH CHECK (auth.uid() = id);
 
--- Admins y dueños ven todos los perfiles
-CREATE POLICY "admin_ve_todos_perfiles"
-  ON public.profiles FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid()
-        AND p.role IN ('admin', 'dueño')
-    )
-  );
-
--- El trigger SECURITY DEFINER puede insertar perfiles sin restricción
-CREATE POLICY "sistema_inserta_perfil"
+-- El trigger SECURITY DEFINER puede insertar sin restricción
+CREATE POLICY "profiles_trigger_insert"
   ON public.profiles FOR INSERT
   WITH CHECK (TRUE);
 
+-- viajes
+ALTER TABLE public.viajes ENABLE ROW LEVEL SECURITY;
 
--- --- cierres_caja ---
-ALTER TABLE public.cierres_caja ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "viajes_own"
+  ON public.viajes FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
--- Cajero: solo ve sus propios cierres
-CREATE POLICY "cajero_ve_sus_cierres"
-  ON public.cierres_caja FOR SELECT
-  USING (auth.uid() = cajero_id);
+-- compras (acceso a través de ownership del viaje)
+ALTER TABLE public.compras ENABLE ROW LEVEL SECURITY;
 
--- Cajero: puede insertar cierres propios
-CREATE POLICY "cajero_inserta_cierre"
-  ON public.cierres_caja FOR INSERT
-  WITH CHECK (auth.uid() = cajero_id);
-
--- Admin / Dueño: ven y modifican todos los cierres
-CREATE POLICY "admin_ve_todos_cierres"
-  ON public.cierres_caja FOR SELECT
+CREATE POLICY "compras_own"
+  ON public.compras FOR ALL
   USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid()
-        AND p.role IN ('admin', 'dueño')
-    )
+    EXISTS (SELECT 1 FROM public.viajes v WHERE v.id = viaje_id AND v.user_id = auth.uid())
+  )
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM public.viajes v WHERE v.id = viaje_id AND v.user_id = auth.uid())
   );
 
-CREATE POLICY "admin_actualiza_cierres"
-  ON public.cierres_caja FOR UPDATE
+-- ventas
+ALTER TABLE public.ventas ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "ventas_own"
+  ON public.ventas FOR ALL
   USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid()
-        AND p.role IN ('admin', 'dueño')
-    )
+    EXISTS (SELECT 1 FROM public.viajes v WHERE v.id = viaje_id AND v.user_id = auth.uid())
+  )
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM public.viajes v WHERE v.id = viaje_id AND v.user_id = auth.uid())
   );
 
-CREATE POLICY "admin_elimina_cierres"
-  ON public.cierres_caja FOR DELETE
+-- costos_adicionales
+ALTER TABLE public.costos_adicionales ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "costos_own"
+  ON public.costos_adicionales FOR ALL
   USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid()
-        AND p.role IN ('admin', 'dueño')
-    )
+    EXISTS (SELECT 1 FROM public.viajes v WHERE v.id = viaje_id AND v.user_id = auth.uid())
+  )
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM public.viajes v WHERE v.id = viaje_id AND v.user_id = auth.uid())
   );
 
 
 -- ============================================================
--- 6. VISTA: resumen de cierres (útil para reportes futuros)
+-- 8. VISTA: resumen por viaje
 -- ============================================================
 
-CREATE OR REPLACE VIEW public.v_resumen_cierres AS
+CREATE OR REPLACE VIEW public.v_resumen_viajes AS
 SELECT
-  cc.id,
-  cc.cajero_nombre,
-  cc.turno_inicio,
-  cc.turno_fin,
-  cc.total_ventas_usd,
-  cc.total_ventas_bs,
-  cc.efectivo_usd_contado,
-  cc.diferencia_usd,
-  cc.tasa_bcv,
-  cc.alerta,
-  cc.notas,
-  cc.created_at,
-  p.role AS cajero_role
-FROM public.cierres_caja cc
-LEFT JOIN public.profiles p ON p.id = cc.cajero_id;
+  v.id,
+  v.nombre,
+  v.fecha_inicio,
+  v.fecha_fin,
+  v.estado,
+  v.user_id,
+  COALESCE(SUM(c.cantidad * c.precio_unitario), 0)            AS total_compras,
+  COALESCE(SUM(ve.cantidad * ve.precio_unitario), 0)          AS total_ventas,
+  COALESCE(SUM(ca.monto), 0)                                  AS total_costos,
+  COALESCE(SUM(ve.cantidad * ve.precio_unitario), 0)
+    - COALESCE(SUM(c.cantidad * c.precio_unitario), 0)
+    - COALESCE(SUM(ca.monto), 0)                              AS ganancia_neta
+FROM public.viajes v
+LEFT JOIN public.compras           c  ON c.viaje_id  = v.id
+LEFT JOIN public.ventas            ve ON ve.viaje_id = v.id
+LEFT JOIN public.costos_adicionales ca ON ca.viaje_id = v.id
+GROUP BY v.id;
 
-COMMENT ON VIEW public.v_resumen_cierres IS 'Vista de cierres de caja con información del cajero incluida.';
-
-
--- ============================================================
--- 7. DATOS INICIALES OPCIONALES
---    Si ya tienes un usuario registrado, puedes promoverlo
---    a admin o dueño con este UPDATE.
---    Reemplaza el correo con el tuyo.
--- ============================================================
-
--- UPDATE public.profiles
--- SET role = 'dueño'
--- WHERE id = (
---   SELECT id FROM auth.users WHERE email = 'tu@correo.com'
--- );
+COMMENT ON VIEW public.v_resumen_viajes IS 'Totales calculados por viaje: compras, ventas, costos y ganancia neta.';
 
 
 -- ============================================================
--- VERIFICACIÓN — ejecuta esto para confirmar que todo quedó bien
--- ============================================================
-
+-- VERIFICACIÓN
 -- SELECT table_name FROM information_schema.tables
--- WHERE table_schema = 'public'
--- ORDER BY table_name;
+-- WHERE table_schema = 'public' ORDER BY table_name;
+-- ============================================================
