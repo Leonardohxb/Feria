@@ -74,14 +74,14 @@ function AddButton({ onClick, open }) {
 /* ── Item row ───────────────────────────────────────────── */
 function ItemRow({ title, line, date, note, onEdit, onDelete }) {
     return (
-        <div className="card py-3 px-4 flex items-start gap-3 group hover:border-ring transition-colors">
-            <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-stone-800 dark:text-slate-200">{title}</p>
-                <p className="text-xs text-stone-500 dark:text-slate-400 mt-0.5 tabular">{line}</p>
+        <div className="card py-3 px-4 flex items-center gap-3 group hover:border-ring transition-colors">
+            <p className="text-sm font-medium text-stone-800 dark:text-slate-200 flex-1 min-w-0 truncate">{title}</p>
+            <div className="text-right shrink-0">
+                <p className="text-xs text-stone-600 dark:text-slate-300 tabular">{line}</p>
                 <p className="text-xs text-stone-400 dark:text-slate-500 mt-0.5">{date}{note ? ` · ${note}` : ''}</p>
             </div>
             {(onEdit || onDelete) && (
-                <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                     {onEdit && <EditBtn onClick={onEdit} />}
                     {onDelete && <DeleteBtn onClick={onDelete} />}
                 </div>
