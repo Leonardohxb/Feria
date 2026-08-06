@@ -1,4 +1,5 @@
 'use client';
+import { Sprout, Sun, Moon } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useRouter, usePathname } from 'next/navigation';
@@ -35,10 +36,10 @@ export default function DashboardLayout({ children }) {
                         className="flex items-center gap-2.5 hover:opacity-80 transition-opacity shrink-0"
                     >
                         <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
-                            <span className="text-sm leading-none">🥦</span>
+                            <Sprout className="w-4 h-4 text-primary-foreground" strokeWidth={2} />
                         </div>
                         <span className="font-semibold text-stone-800 dark:text-slate-200 text-sm hidden sm:block tracking-tight">
-                            Feria de Vegetales
+                            kropflow
                         </span>
                     </button>
 
@@ -91,7 +92,7 @@ export default function DashboardLayout({ children }) {
                             className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors border border-stone-200 dark:border-slate-700"
                             title={dark ? 'Modo claro' : 'Modo oscuro'}
                         >
-                            {dark ? '☀️' : '🌙'}
+                            {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                         </button>
                         <button
                             onClick={signOut}
@@ -109,7 +110,7 @@ export default function DashboardLayout({ children }) {
             </main>
 
             <footer className="text-center text-xs text-stone-400 dark:text-slate-500 py-4 border-t border-stone-100 dark:border-slate-800">
-                © {new Date().getFullYear()} Feria de Vegetales
+                © {new Date().getFullYear()} kropflow
             </footer>
         </div>
     );

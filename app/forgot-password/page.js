@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import { Sprout, Mail, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 export default function ForgotPasswordPage() {
@@ -28,13 +29,13 @@ export default function ForgotPasswordPage() {
         return (
             <main className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
                 <div className="card max-w-sm w-full text-center animate-fade-in py-10">
-                    <div className="text-4xl mb-4">📧</div>
+                    <div className="flex justify-center mb-4"><Mail className="w-10 h-10 text-muted-foreground" strokeWidth={1.5} /></div>
                     <h2 className="text-lg font-semibold text-stone-900 dark:text-slate-100 mb-2 text-balance">Revisa tu correo</h2>
                     <p className="text-sm text-stone-500 dark:text-slate-400 mb-6">
                         Enviamos un enlace de recuperación a <strong className="text-stone-700 dark:text-slate-300">{email}</strong>
                     </p>
-                    <Link href="/login" className="text-sm font-medium text-foreground hover:underline transition-colors">
-                        ← Volver al inicio de sesión
+                    <Link href="/login" className="inline-flex items-center gap-1 text-sm font-medium text-foreground hover:underline transition-colors">
+                        <ArrowLeft className="w-4 h-4" /> Volver al inicio de sesión
                     </Link>
                 </div>
             </main>
@@ -48,9 +49,9 @@ export default function ForgotPasswordPage() {
                 {/* Logo */}
                 <div className="flex flex-col items-center mb-8">
                     <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-sm">
-                        <span className="text-2xl">🥦</span>
+                        <Sprout className="w-7 h-7 text-primary-foreground" strokeWidth={1.75} />
                     </div>
-                    <h1 className="text-xl font-semibold text-stone-900 dark:text-slate-100 tracking-tight">Feria de Vegetales</h1>
+                    <h1 className="text-xl font-semibold text-stone-900 dark:text-slate-100 tracking-tight">kropflow</h1>
                     <p className="text-sm text-stone-500 dark:text-slate-400 mt-1">Recuperar contraseña</p>
                 </div>
 
@@ -84,8 +85,8 @@ export default function ForgotPasswordPage() {
                     </form>
 
                     <p className="mt-5 text-center text-sm text-stone-500 dark:text-slate-400">
-                        <Link href="/login" className="font-medium text-foreground hover:underline transition-colors">
-                            ← Volver al inicio de sesión
+                        <Link href="/login" className="inline-flex items-center gap-1 font-medium text-foreground hover:underline transition-colors">
+                            <ArrowLeft className="w-4 h-4" /> Volver al inicio de sesión
                         </Link>
                     </p>
                 </div>

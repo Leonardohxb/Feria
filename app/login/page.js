@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Sprout } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 const ERROR_MAP = {
@@ -40,9 +41,9 @@ export default function LoginPage() {
                 {/* Logo */}
                 <div className="flex flex-col items-center mb-8">
                     <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-sm">
-                        <span className="text-2xl">🥦</span>
+                        <Sprout className="w-7 h-7 text-primary-foreground" strokeWidth={1.75} />
                     </div>
-                    <h1 className="text-xl font-semibold text-stone-900 dark:text-slate-100 tracking-tight">Feria de Vegetales</h1>
+                    <h1 className="text-xl font-semibold text-stone-900 dark:text-slate-100 tracking-tight">kropflow</h1>
                     <p className="text-sm text-stone-500 dark:text-slate-400 mt-1">Control de viajes y costos</p>
                 </div>
 

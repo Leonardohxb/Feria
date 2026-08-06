@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 import supabase from '@/lib/supabaseClient';
 import { useAuth } from '@/context/AuthContext';
 
@@ -44,7 +45,7 @@ export default function NuevoViajePage() {
                 onClick={() => router.push('/dashboard')}
                 className="flex items-center gap-1.5 text-sm text-stone-500 dark:text-slate-400 hover:text-stone-800 dark:hover:text-slate-200 transition-colors mb-6"
             >
-                <span>←</span> Mis viajes
+                <ArrowLeft className="w-4 h-4" /> Mis viajes
             </button>
 
             <h1 className="text-xl font-semibold text-stone-900 dark:text-slate-100 mb-6">Nuevo viaje</h1>

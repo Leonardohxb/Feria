@@ -11,7 +11,7 @@ const dmSans = DM_Sans({
 });
 
 export const metadata = {
-  title: 'Feria de Vegetales',
+  title: 'kropflow',
   description: 'Gestión de viajes de compra y venta de hortalizas',
 };
 

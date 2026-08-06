@@ -1,12 +1,14 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { ArrowLeft, X, Pencil, ClipboardList, HardHat, Utensils, BedDouble, Fuel, Droplet, Truck, Tag } from 'lucide-react';
 import supabase from '@/lib/supabaseClient';
 import { useAuth } from '@/context/AuthContext';
 
 const UNIDADES    = ['kg', 'caja', 'unidad', 'saco', 'paca', 'otro'];
 const TIPOS_COSTO = ['administracion', 'obreros', 'comida', 'hotel', 'gasolina', 'gasoil', 'transporte', 'otro'];
-const TIPO_ICON   = { administracion: '📋', obreros: '👷', comida: '🍽️', hotel: '🏨', gasolina: '⛽', gasoil: '🛢️', transporte: '🚛', otro: '📌' };
+const TIPO_ICON   = { administracion: ClipboardList, obreros: HardHat, comida: Utensils, hotel: BedDouble, gasolina: Fuel, gasoil: Droplet, transporte: Truck, otro: Tag };
+const TIPO_LABEL  = t => t.charAt(0).toUpperCase() + t.slice(1);
 
 const TABS = [
     { id: 'compras', label: 'Compras'  },
@@ -46,7 +48,7 @@ function DeleteBtn({ onClick }) {
             className="shrink-0 w-7 h-7 flex items-center justify-center rounded-md text-stone-300 hover:text-red-500 hover:bg-red-50 transition-colors"
             title="Eliminar"
         >
-            ✕
+            <X className="w-4 h-4" />
         </button>
     );
 }
@@ -58,7 +60,7 @@ function EditBtn({ onClick }) {
             className="shrink-0 w-7 h-7 flex items-center justify-center rounded-md text-stone-300 hover:text-foreground hover:bg-muted transition-colors"
             title="Editar"
         >
-            ✎
+            <Pencil className="w-3.5 h-3.5" />
         </button>
     );
 }
@@ -160,8 +162,8 @@ function ProductoField({ value, onChange, productos, onCreated, userId }) {
                 <button type="button" onClick={handleCreate} className="btn-secondary text-sm px-3 shrink-0" style={{ width: 'auto' }}>
                     Crear
                 </button>
-                <button type="button" onClick={() => { setCreating(false); setError(''); }} className="text-stone-400 hover:text-stone-600 shrink-0 px-1">
-                    ✕
+                <button type="button" onClick={() => { setCreating(false); setError(''); }} className="text-stone-400 hover:text-stone-600 shrink-0 px-1 flex items-center">
+                    <X className="w-4 h-4" />
                 </button>
                 {error && <p className="text-xs text-red-500 col-span-2">{error}</p>}
             </div>
@@ -427,7 +429,7 @@ function CostosTab({ viajeId, readOnly }) {
                 <InlineForm onSubmit={handleSubmit} saving={saving} label={editId ? 'Guardar cambios' : 'Guardar costo'}>
                     <select value={form.tipo} onChange={sf('tipo')} className="input-base">
                         {TIPOS_COSTO.map(t => (
-                            <option key={t} value={t}>{TIPO_ICON[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                            <option key={t} value={t}>{TIPO_LABEL(t)}</option>
                         ))}
                     </select>
                     <input type="date" value={form.fecha} onChange={sf('fecha')} className="input-base" />
@@ -438,15 +440,18 @@ function CostosTab({ viajeId, readOnly }) {
 
             {loading ? <Spinner />
                 : items.length === 0 ? <EmptyState msg="Sin costos adicionales. Agrega el primero." />
-                : items.map(i => (
+                : items.map(i => {
+                    const Icon = TIPO_ICON[i.tipo] ?? Tag;
+                    return (
                     <ItemRow key={i.id}
-                        title={`${TIPO_ICON[i.tipo] ?? '📌'} ${i.descripcion}`}
-                        line={`${i.tipo} · $${fmt(i.monto)}`}
+                        title={<span className="inline-flex items-center gap-1.5"><Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" /> {i.descripcion}</span>}
+                        line={`${TIPO_LABEL(i.tipo)} · $${fmt(i.monto)}`}
                         date={fmtDate(i.fecha)}
                         onEdit={!readOnly ? () => startEdit(i) : null}
                         onDelete={!readOnly ? () => del(i.id) : null}
                     />
-                ))
+                    );
+                })
             }
         </div>
     );
@@ -654,7 +659,7 @@ export default function ViajeDetallePage() {
                     onClick={() => router.push('/dashboard')}
                     className="text-xs text-stone-400 dark:text-slate-500 hover:text-stone-700 dark:hover:text-slate-300 transition-colors mb-3 flex items-center gap-1"
                 >
-                    ← Mis viajes
+                    <ArrowLeft className="w-3.5 h-3.5" /> Mis viajes
                 </button>
 
                 <div className="flex items-start justify-between gap-3">

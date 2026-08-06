@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Truck } from 'lucide-react';
 import supabase from '@/lib/supabaseClient';
 import { useAuth } from '@/context/AuthContext';
 
@@ -117,7 +118,7 @@ export default function DashboardPage() {
                     </div>
                 ) : viajes.length === 0 ? (
                     <div className="card text-center py-14 border-dashed">
-                        <p className="text-4xl mb-3">🚛</p>
+                        <Truck className="w-10 h-10 mx-auto mb-3 text-muted-foreground" strokeWidth={1.5} />
                         <p className="text-stone-700 dark:text-slate-300 font-medium mb-1">Sin viajes todavía</p>
                         <p className="text-sm text-stone-400 dark:text-slate-500 mb-6 max-w-xs mx-auto text-balance">
                             Crea tu primer viaje para comenzar a registrar compras, ventas y costos.
@@ -141,7 +142,7 @@ export default function DashboardPage() {
                                     className="w-full card text-left hover:border-ring hover:shadow-sm group transition-all py-3.5 px-4"
                                 >
                                     <div className="flex items-center gap-3">
-                                        <div className="icon-chip group-hover:border-ring transition-colors">🚛</div>
+                                        <div className="icon-chip group-hover:border-ring transition-colors"><Truck className="w-4 h-4 text-muted-foreground" /></div>
                                         <div className="flex-1 min-w-0">
                                             <p className="font-medium text-stone-900 dark:text-slate-100 text-sm truncate group-hover:text-foreground transition-colors">
                                                 {v.nombre}

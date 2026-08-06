@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 import supabase from '@/lib/supabaseClient';
 import { useAuth } from '@/context/AuthContext';
 
@@ -59,7 +60,7 @@ export default function InventarioPage() {
                 onClick={() => router.push('/dashboard')}
                 className="flex items-center gap-1.5 text-sm text-stone-500 dark:text-slate-400 hover:text-stone-800 dark:hover:text-slate-200 transition-colors"
             >
-                <span>←</span> Mis viajes
+                <ArrowLeft className="w-4 h-4" /> Mis viajes
             </button>
 
             <div className="flex items-center justify-between gap-3">
