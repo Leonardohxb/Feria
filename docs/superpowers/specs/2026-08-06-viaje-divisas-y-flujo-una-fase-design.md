@@ -79,7 +79,8 @@ RLS: acceso vía dueño del viaje (mismo patrón que `compras`).
 
 - **Panel "Divisas del viaje"** — arriba de todo en la fase Preparación (donde el dueño lo pidió):
   - Lista cada divisa como `1 USD = [tasa] {codigo}`. USD (base) fija: no editable ni borrable.
-  - La tasa de las no-base es un input editable (guarda al confirmar). Botón para **borrar** una divisa no-base **solo si no tiene compras** (FK `ON DELETE RESTRICT`; la UI deshabilita el borrado si está en uso).
+  - Las no-base son **editables** (código y tasa) y **borrables**.
+  - **Borrar una divisa en uso**: sus compras se **reasignan a USD** primero — `precio_unitario` se convierte a USD (`precio_unitario ÷ tasa`) y `divisa_id` pasa a la USD del viaje — y luego se borra la divisa. Así el valor no se pierde. (FK `ON DELETE RESTRICT` como red de seguridad; la app reasigna antes de borrar.)
   - **"+ Agregar divisa"**: campos `codigo` + `tasa`.
   - Editable solo con viaje `activo`.
 - **Formulario de Compra**: se agrega un `<select>` de divisa (las del viaje). El input de precio se rotula con el código de la divisa elegida. Al guardar, se guarda `precio_unitario` (en la divisa) + `divisa_id`. Al editar, el selector permite cambiar la divisa.
@@ -97,7 +98,7 @@ RLS: acceso vía dueño del viaje (mismo patrón que `compras`).
 ## Casos borde
 
 - **Divisa Bs sin tasa real (placeholder 1)**: se permite; el panel muestra Bs prominente para que el dueño ponga la tasa del día. Sin validación dura.
-- **Borrar divisa en uso**: bloqueado (FK RESTRICT + UI deshabilita). USD base nunca se borra ni edita.
+- **Borrar divisa en uso**: permitido; sus compras se reasignan a USD (precio convertido con la tasa vigente) antes de borrar. USD base nunca se borra ni edita.
 - **Compra existente (pre-feature)**: queda en USD (divisa base), sin cambio de valor.
 - **Viaje cerrado**: todo solo lectura, incluidas divisas; se ve el Resumen.
 - **Editar tasa**: recalcula todos los totales de compras en esa divisa (no hay snapshot).
