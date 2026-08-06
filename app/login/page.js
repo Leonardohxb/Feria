@@ -34,12 +34,12 @@ export default function LoginPage() {
     }
 
     return (
-        <main className="min-h-screen bg-[#f8fafc] dark:bg-[#0f172a] flex items-center justify-center px-4 py-12">
+        <main className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
             <div className="w-full max-w-sm animate-fade-in">
 
                 {/* Logo */}
                 <div className="flex flex-col items-center mb-8">
-                    <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
+                    <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-sm">
                         <span className="text-2xl">🥦</span>
                     </div>
                     <h1 className="text-xl font-semibold text-stone-900 dark:text-slate-100 tracking-tight">Feria de Vegetales</h1>
@@ -67,7 +67,7 @@ export default function LoginPage() {
                                 <label htmlFor="password" className="text-sm font-medium text-stone-700 dark:text-slate-300">
                                     Contraseña
                                 </label>
-                                <Link href="/forgot-password" className="text-xs text-blue-600 hover:text-blue-700 hover:underline transition-colors">
+                                <Link href="/forgot-password" className="text-xs text-foreground hover:underline transition-colors">
                                     ¿La olvidaste?
                                 </Link>
                             </div>
@@ -89,7 +89,7 @@ export default function LoginPage() {
 
                     <p className="mt-5 text-center text-sm text-stone-500 dark:text-slate-400">
                         ¿No tienes cuenta?{' '}
-                        <Link href="/registro" className="font-medium text-blue-600 hover:text-blue-700 hover:underline transition-colors">
+                        <Link href="/registro" className="font-medium text-foreground hover:underline transition-colors">
                             Regístrate
                         </Link>
                     </p>

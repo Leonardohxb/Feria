@@ -14,8 +14,8 @@ export default function Home() {
   }, [user, loading, router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-[#0f172a]">
-      <div className="w-8 h-8 rounded-full border-[3px] border-stone-200 dark:border-slate-700 border-t-blue-600 animate-spin" />
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="w-8 h-8 rounded-full border-[3px] border-stone-200 dark:border-slate-700 border-t-foreground animate-spin" />
     </div>
   );
 }

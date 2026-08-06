@@ -11,8 +11,8 @@ export default function DashboardLayout({ children }) {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-[#0f172a]">
-                <div className="w-7 h-7 rounded-full border-[3px] border-stone-200 border-t-blue-600 animate-spin" />
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <div className="w-7 h-7 rounded-full border-[3px] border-stone-200 border-t-foreground animate-spin" />
             </div>
         );
     }
@@ -24,9 +24,9 @@ export default function DashboardLayout({ children }) {
     const isNewViaje = pathname === '/dashboard/viajes/nuevo';
 
     return (
-        <div className="min-h-screen flex flex-col bg-[#f8fafc] dark:bg-[#0f172a]">
+        <div className="min-h-screen flex flex-col bg-background">
             {/* Header */}
-            <header className="bg-white dark:bg-slate-900 border-b border-stone-200 dark:border-slate-700 sticky top-0 z-10">
+            <header className="bg-card border-b border-stone-200 dark:border-slate-700 sticky top-0 z-10">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
 
                     {/* Logo */}
@@ -34,7 +34,7 @@ export default function DashboardLayout({ children }) {
                         onClick={() => router.push('/dashboard')}
                         className="flex items-center gap-2.5 hover:opacity-80 transition-opacity shrink-0"
                     >
-                        <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
+                        <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
                             <span className="text-sm leading-none">🥦</span>
                         </div>
                         <span className="font-semibold text-stone-800 dark:text-slate-200 text-sm hidden sm:block tracking-tight">
@@ -48,7 +48,7 @@ export default function DashboardLayout({ children }) {
                             onClick={() => router.push('/dashboard')}
                             className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                                 pathname === '/dashboard'
-                                    ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/40 dark:text-blue-400'
+                                    ? 'text-foreground bg-secondary'
                                     : 'text-stone-600 dark:text-slate-400 hover:text-stone-900 dark:hover:text-slate-100 hover:bg-stone-100 dark:hover:bg-slate-700'
                             }`}
                         >
@@ -58,7 +58,7 @@ export default function DashboardLayout({ children }) {
                             onClick={() => router.push('/dashboard/viajes/nuevo')}
                             className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                                 isNewViaje
-                                    ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/40 dark:text-blue-400'
+                                    ? 'text-foreground bg-secondary'
                                     : 'text-stone-600 dark:text-slate-400 hover:text-stone-900 dark:hover:text-slate-100 hover:bg-stone-100 dark:hover:bg-slate-700'
                             }`}
                         >
@@ -68,7 +68,7 @@ export default function DashboardLayout({ children }) {
                             onClick={() => router.push('/dashboard/inventario')}
                             className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                                 pathname === '/dashboard/inventario'
-                                    ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/40 dark:text-blue-400'
+                                    ? 'text-foreground bg-secondary'
                                     : 'text-stone-600 dark:text-slate-400 hover:text-stone-900 dark:hover:text-slate-100 hover:bg-stone-100 dark:hover:bg-slate-700'
                             }`}
                         >
@@ -79,8 +79,8 @@ export default function DashboardLayout({ children }) {
                     {/* User */}
                     <div className="flex items-center gap-2.5 shrink-0">
                         <div className="hidden sm:flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center">
-                                <span className="text-xs font-semibold text-blue-700">{initials}</span>
+                            <div className="w-7 h-7 rounded-full bg-muted border border-border flex items-center justify-center">
+                                <span className="text-xs font-semibold text-foreground">{initials}</span>
                             </div>
                             <span className="text-sm text-stone-600 dark:text-slate-400 max-w-[120px] truncate">
                                 {profile?.full_name?.split(' ')[0] ?? user?.email}

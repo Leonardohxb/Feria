@@ -66,7 +66,7 @@ export default function InventarioPage() {
                 <h1 className="text-xl font-semibold text-stone-900 dark:text-slate-100">Inventario</h1>
                 <button
                     onClick={() => { setShowForm(s => !s); setError(''); }}
-                    className="text-sm font-medium px-3 py-1.5 rounded-lg border transition-colors border-blue-600 text-blue-600 hover:bg-blue-50"
+                    className="text-sm font-medium px-3 py-1.5 rounded-lg border transition-colors border-foreground/30 text-foreground hover:bg-muted"
                 >
                     {showForm ? 'Cancelar' : '+ Nuevo item'}
                 </button>
@@ -96,7 +96,7 @@ export default function InventarioPage() {
             <div className="card p-0 overflow-hidden">
                 {loading ? (
                     <div className="py-10 flex justify-center">
-                        <div className="w-6 h-6 rounded-full border-[3px] border-stone-200 border-t-blue-600 animate-spin" />
+                        <div className="w-6 h-6 rounded-full border-[3px] border-stone-200 border-t-foreground animate-spin" />
                     </div>
                 ) : items.length === 0 ? (
                     <div className="py-12 text-center">

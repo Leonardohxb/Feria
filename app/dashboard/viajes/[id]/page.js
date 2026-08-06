@@ -26,7 +26,7 @@ function fmtDate(d) { return new Date(d + 'T00:00:00').toLocaleDateString('es-VE
 function Spinner() {
     return (
         <div className="py-10 flex justify-center">
-            <div className="w-6 h-6 rounded-full border-[3px] border-stone-200 border-t-blue-600 animate-spin" />
+            <div className="w-6 h-6 rounded-full border-[3px] border-stone-200 border-t-foreground animate-spin" />
         </div>
     );
 }
@@ -55,7 +55,7 @@ function EditBtn({ onClick }) {
     return (
         <button
             onClick={onClick}
-            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-md text-stone-300 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-md text-stone-300 hover:text-foreground hover:bg-muted transition-colors"
             title="Editar"
         >
             ✎
@@ -71,7 +71,7 @@ function AddButton({ onClick, open }) {
             className={`text-sm font-medium px-3 py-1.5 rounded-lg border transition-colors ${
                 open
                     ? 'border-stone-200 text-stone-500 hover:bg-stone-50'
-                    : 'border-blue-600 text-blue-600 hover:bg-blue-50'
+                    : 'border-foreground/30 text-foreground hover:bg-muted'
             }`}
         >
             {open ? 'Cancelar' : '+ Agregar'}
@@ -246,7 +246,7 @@ function ComprasTab({ viajeId, readOnly }) {
 
     return (
         <div className="card p-0 overflow-hidden">
-            <SectionHeader count={items.length} total={total} color="text-orange-600">
+            <SectionHeader count={items.length} total={total} color="text-foreground">
                 {!readOnly && <AddButton onClick={() => showForm ? resetForm() : setShowForm(true)} open={showForm} />}
             </SectionHeader>
 
@@ -334,7 +334,7 @@ function VentasTab({ viajeId, readOnly }) {
 
     return (
         <div className="card p-0 overflow-hidden">
-            <SectionHeader count={items.length} total={total} color="text-green-600">
+            <SectionHeader count={items.length} total={total} color="text-foreground">
                 {!readOnly && <AddButton onClick={() => showForm ? resetForm() : setShowForm(true)} open={showForm} />}
             </SectionHeader>
 
@@ -419,7 +419,7 @@ function CostosTab({ viajeId, readOnly }) {
 
     return (
         <div className="card p-0 overflow-hidden">
-            <SectionHeader count={items.length} total={total} color="text-amber-600">
+            <SectionHeader count={items.length} total={total} color="text-foreground">
                 {!readOnly && <AddButton onClick={() => showForm ? resetForm() : setShowForm(true)} open={showForm} />}
             </SectionHeader>
 
@@ -515,16 +515,16 @@ function ResumenTab({ viajeId }) {
                     <p className="text-xs font-semibold text-stone-500 dark:text-slate-400 uppercase tracking-wider">Cálculo de ganancia</p>
                 </div>
                 <div className="divide-y divide-stone-100 dark:divide-slate-700">
-                    <Row label="Ingresos por ventas"  value={`+ $${fmt(totalVentas)}`}  color="text-green-600 dark:text-green-400" />
-                    <Row label="Costo de compras"      value={`− $${fmt(totalCompras)}`} color="text-orange-600 dark:text-orange-400" />
+                    <Row label="Ingresos por ventas"  value={`+ $${fmt(totalVentas)}`}  color="text-foreground" />
+                    <Row label="Costo de compras"      value={`− $${fmt(totalCompras)}`} color="text-foreground" />
                     <Row label="Ganancia bruta" bold
                         value={(bruta >= 0 ? '+ ' : '− ') + `$${fmt(Math.abs(bruta))}`}
-                        color={bruta >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'} />
-                    <Row label="Costos adicionales"   value={`− $${fmt(totalCostos)}`}  color="text-amber-600 dark:text-amber-400" />
+                        color={bruta >= 0 ? 'text-foreground' : 'text-red-600 dark:text-red-400'} />
+                    <Row label="Costos adicionales"   value={`− $${fmt(totalCostos)}`}  color="text-foreground" />
                     <div className="px-4 py-4 bg-stone-50 dark:bg-slate-800">
                         <div className="flex items-center justify-between">
                             <p className="text-sm font-semibold text-stone-900 dark:text-slate-100">Ganancia neta</p>
-                            <p className={`text-xl font-bold tabular ${neta >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                            <p className={`text-xl font-bold tabular ${neta >= 0 ? 'text-foreground' : 'text-red-600 dark:text-red-400'}`}>
                                 {neta >= 0 ? '+' : '−'}${fmt(Math.abs(neta))}
                             </p>
                         </div>
@@ -553,7 +553,7 @@ function ResumenTab({ viajeId }) {
                                     <span className="px-4 py-2.5 text-sm text-stone-800 dark:text-slate-200 border-t border-stone-100 dark:border-slate-700 truncate">{p.nombre}</span>
                                     <span className="px-2 py-2.5 text-sm text-stone-500 dark:text-slate-400 text-right tabular border-t border-stone-100 dark:border-slate-700">{fmt(p.comprado)}</span>
                                     <span className="px-2 py-2.5 text-sm text-stone-500 dark:text-slate-400 text-right tabular border-t border-stone-100 dark:border-slate-700">{fmt(p.vendido)}</span>
-                                    <span className={`px-4 py-2.5 text-sm font-medium text-right tabular border-t border-stone-100 dark:border-slate-700 ${faltante ? 'text-red-600 dark:text-red-400' : sob > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
+                                    <span className={`px-4 py-2.5 text-sm font-medium text-right tabular border-t border-stone-100 dark:border-slate-700 ${faltante ? 'text-red-600 dark:text-red-400' : sob > 0 ? 'text-foreground' : 'text-foreground'}`}>
                                         {fmt(sob)} <span className="text-stone-400 dark:text-slate-500 font-normal">{p.unidad}</span>
                                     </span>
                                 </div>
@@ -581,8 +581,8 @@ function ResumenTab({ viajeId }) {
                 </div>
             )}
             {!noData && neta >= 0 && (
-                <div className="card border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-950">
-                    <p className="text-sm text-green-700 dark:text-green-400">
+                <div className="card border-border bg-muted">
+                    <p className="text-sm text-foreground">
                         Ganancia neta: <span className="font-semibold tabular">${fmt(neta)}</span>
                     </p>
                 </div>
@@ -627,7 +627,7 @@ export default function ViajeDetallePage() {
     if (loading) {
         return (
             <div className="flex justify-center py-20">
-                <div className="w-7 h-7 rounded-full border-[3px] border-stone-200 border-t-blue-600 animate-spin" />
+                <div className="w-7 h-7 rounded-full border-[3px] border-stone-200 border-t-foreground animate-spin" />
             </div>
         );
     }
@@ -636,7 +636,7 @@ export default function ViajeDetallePage() {
         return (
             <div className="text-center py-20">
                 <p className="text-stone-400 text-sm">Viaje no encontrado.</p>
-                <button onClick={() => router.push('/dashboard')} className="mt-4 text-sm text-blue-600 hover:underline">
+                <button onClick={() => router.push('/dashboard')} className="mt-4 text-sm text-foreground hover:underline">
                     Volver
                 </button>
             </div>
@@ -694,7 +694,7 @@ export default function ViajeDetallePage() {
                         onClick={() => setActiveTab(tab.id)}
                         className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                             activeTab === tab.id
-                                ? 'border-blue-600 text-blue-600'
+                                ? 'border-foreground text-foreground'
                                 : 'border-transparent text-stone-500 dark:text-slate-400 hover:text-stone-800 dark:hover:text-slate-200 hover:border-stone-300'
                         }`}
                     >

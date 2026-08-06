@@ -138,12 +138,12 @@ export default function DashboardPage() {
                                 <button
                                     key={v.id}
                                     onClick={() => router.push(`/dashboard/viajes/${v.id}`)}
-                                    className="w-full card text-left hover:border-blue-300 hover:shadow-sm group transition-all py-3.5 px-4"
+                                    className="w-full card text-left hover:border-ring hover:shadow-sm group transition-all py-3.5 px-4"
                                 >
                                     <div className="flex items-center gap-3">
-                                        <div className="icon-chip group-hover:border-blue-300 transition-colors">🚛</div>
+                                        <div className="icon-chip group-hover:border-ring transition-colors">🚛</div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="font-medium text-stone-900 dark:text-slate-100 text-sm truncate group-hover:text-blue-700 transition-colors">
+                                            <p className="font-medium text-stone-900 dark:text-slate-100 text-sm truncate group-hover:text-foreground transition-colors">
                                                 {v.nombre}
                                             </p>
                                             <p className="text-xs text-stone-400 dark:text-slate-500 mt-0.5">
@@ -156,7 +156,7 @@ export default function DashboardPage() {
                                                 {v.estado === 'activo' ? 'Activo' : 'Cerrado'}
                                             </span>
                                             {!sinDatos && (
-                                                <span className={`text-sm font-semibold tabular ${v.ganancia >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                <span className={`text-sm font-semibold tabular ${v.ganancia >= 0 ? 'text-foreground' : 'text-red-600 dark:text-red-400'}`}>
                                                     {v.ganancia >= 0 ? '+' : '−'}${fmt(Math.abs(v.ganancia))}
                                                 </span>
                                             )}
