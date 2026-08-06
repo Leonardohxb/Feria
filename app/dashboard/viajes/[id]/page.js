@@ -29,7 +29,7 @@ function Spinner() {
 
 function EmptyState({ msg }) {
     return (
-        <div className="py-12 text-center">
+        <div className="card border-dashed py-10 text-center">
             <p className="text-stone-400 dark:text-slate-500 text-sm">{msg}</p>
         </div>
     );
@@ -78,7 +78,7 @@ function AddButton({ onClick, open }) {
 /* ── Item row ───────────────────────────────────────────── */
 function ItemRow({ title, line, date, note, onEdit, onDelete }) {
     return (
-        <div className="flex items-start gap-3 py-3 px-4 border-b border-stone-100 dark:border-slate-700 last:border-0 group">
+        <div className="card py-3 px-4 flex items-start gap-3 group hover:border-ring transition-colors">
             <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-stone-800 dark:text-slate-200">{title}</p>
                 <p className="text-xs text-stone-500 dark:text-slate-400 mt-0.5 tabular">{line}</p>
@@ -97,10 +97,8 @@ function ItemRow({ title, line, date, note, onEdit, onDelete }) {
 /* ── Section total badge ─────────────────────────────────── */
 function SectionHeader({ count, total, color, children }) {
     return (
-        <div className="flex items-center justify-between py-3 px-4 border-b border-stone-100 dark:border-slate-700">
-            <div className="flex items-center gap-2">
-                <p className="text-sm font-medium text-stone-700 dark:text-slate-300">{count} registro{count !== 1 ? 's' : ''}</p>
-            </div>
+        <div className="flex items-center justify-between px-1">
+            <p className="text-sm font-medium text-stone-600 dark:text-slate-400">{count} registro{count !== 1 ? 's' : ''}</p>
             <div className="flex items-center gap-3">
                 <span className={`text-sm font-semibold tabular ${color}`}>${fmt(total)}</span>
                 {children}
@@ -180,7 +178,7 @@ function ProductoField({ value, onChange, productos, onCreated, userId }) {
 /* ── Inline form ─────────────────────────────────────────── */
 function InlineForm({ children, onSubmit, saving, label }) {
     return (
-        <form onSubmit={onSubmit} className="p-4 bg-stone-50 dark:bg-slate-800 border-b border-stone-200 dark:border-slate-700 space-y-3">
+        <form onSubmit={onSubmit} className="card bg-stone-50 dark:bg-slate-800 space-y-3">
             <div className="grid grid-cols-2 gap-2.5">{children}</div>
             <button
                 type="submit" disabled={saving}
@@ -241,7 +239,7 @@ function ComprasTab({ viajeId, readOnly }) {
     const total = items.reduce((s, i) => s + Number(i.cantidad) * Number(i.precio_unitario), 0);
 
     return (
-        <div className="card p-0 overflow-hidden">
+        <div className="space-y-2.5">
             <SectionHeader count={items.length} total={total} color="text-foreground">
                 {!readOnly && <AddButton onClick={() => showForm ? resetForm() : setShowForm(true)} open={showForm} />}
             </SectionHeader>
@@ -329,7 +327,7 @@ function VentasTab({ viajeId, readOnly }) {
     const total = items.reduce((s, i) => s + Number(i.cantidad) * Number(i.precio_unitario), 0);
 
     return (
-        <div className="card p-0 overflow-hidden">
+        <div className="space-y-2.5">
             <SectionHeader count={items.length} total={total} color="text-foreground">
                 {!readOnly && <AddButton onClick={() => showForm ? resetForm() : setShowForm(true)} open={showForm} />}
             </SectionHeader>
@@ -414,7 +412,7 @@ function CostosTab({ viajeId, readOnly }) {
     const total = items.reduce((s, i) => s + Number(i.monto), 0);
 
     return (
-        <div className="card p-0 overflow-hidden">
+        <div className="space-y-2.5">
             <SectionHeader count={items.length} total={total} color="text-foreground">
                 {!readOnly && <AddButton onClick={() => showForm ? resetForm() : setShowForm(true)} open={showForm} />}
             </SectionHeader>
