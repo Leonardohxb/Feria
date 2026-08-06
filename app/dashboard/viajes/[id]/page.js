@@ -28,11 +28,7 @@ function Spinner() {
 }
 
 function EmptyState({ msg }) {
-    return (
-        <div className="card border-dashed py-10 text-center">
-            <p className="text-stone-400 dark:text-slate-500 text-sm">{msg}</p>
-        </div>
-    );
+    return <p className="py-6 text-center text-sm text-stone-400 dark:text-slate-500">{msg}</p>;
 }
 
 function DeleteBtn({ onClick }) {
@@ -95,11 +91,14 @@ function ItemRow({ title, line, date, note, onEdit, onDelete }) {
 }
 
 /* ── Section total badge ─────────────────────────────────── */
-function SectionHeader({ count, total, color, children }) {
+function SectionHeader({ titulo, count, total, color, children }) {
     return (
-        <div className="flex items-center justify-between px-1">
-            <p className="text-sm font-medium text-stone-600 dark:text-slate-400">{count} registro{count !== 1 ? 's' : ''}</p>
-            <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-3">
+            <div className="flex items-baseline gap-2.5 min-w-0">
+                <h2 className="text-sm font-semibold text-stone-500 dark:text-slate-400 uppercase tracking-wider shrink-0">{titulo}</h2>
+                <span className="text-xs text-stone-400 dark:text-slate-500 whitespace-nowrap">{count} registro{count !== 1 ? 's' : ''}</span>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
                 <span className={`text-sm font-semibold tabular ${color}`}>${fmt(total)}</span>
                 {children}
             </div>
@@ -192,7 +191,7 @@ function InlineForm({ children, onSubmit, saving, label }) {
 }
 
 /* ── Compras Tab ────────────────────────────────────────── */
-function ComprasTab({ viajeId, readOnly }) {
+function ComprasTab({ viajeId, readOnly, titulo }) {
     const [items,     setItems]     = useState([]);
     const [loading,   setLoading]   = useState(true);
     const [showForm,  setShowForm]  = useState(false);
@@ -240,7 +239,7 @@ function ComprasTab({ viajeId, readOnly }) {
 
     return (
         <div className="space-y-2.5">
-            <SectionHeader count={items.length} total={total} color="text-foreground">
+            <SectionHeader titulo={titulo} count={items.length} total={total} color="text-foreground">
                 {!readOnly && <AddButton onClick={() => showForm ? resetForm() : setShowForm(true)} open={showForm} />}
             </SectionHeader>
 
@@ -262,25 +261,27 @@ function ComprasTab({ viajeId, readOnly }) {
                 </InlineForm>
             )}
 
-            {loading ? <Spinner />
-                : items.length === 0 ? <EmptyState msg="Sin compras registradas. Agrega la primera." />
-                : items.map(i => (
-                    <ItemRow key={i.id}
-                        title={i.producto}
-                        line={`${i.cantidad} ${i.unidad} × $${fmt(i.precio_unitario)} = $${fmt(Number(i.cantidad) * Number(i.precio_unitario))}`}
-                        date={fmtDate(i.fecha)}
-                        note={i.notas}
-                        onEdit={!readOnly ? () => startEdit(i) : null}
-                        onDelete={!readOnly ? () => del(i.id) : null}
-                    />
-                ))
-            }
+            <div className="rounded-xl border border-border bg-muted p-2.5 space-y-2.5">
+                {loading ? <Spinner />
+                    : items.length === 0 ? <EmptyState msg="Sin compras registradas. Agrega la primera." />
+                    : items.map(i => (
+                        <ItemRow key={i.id}
+                            title={i.producto}
+                            line={`${i.cantidad} ${i.unidad} × $${fmt(i.precio_unitario)} = $${fmt(Number(i.cantidad) * Number(i.precio_unitario))}`}
+                            date={fmtDate(i.fecha)}
+                            note={i.notas}
+                            onEdit={!readOnly ? () => startEdit(i) : null}
+                            onDelete={!readOnly ? () => del(i.id) : null}
+                        />
+                    ))
+                }
+            </div>
         </div>
     );
 }
 
 /* ── Ventas Tab ─────────────────────────────────────────── */
-function VentasTab({ viajeId, readOnly }) {
+function VentasTab({ viajeId, readOnly, titulo }) {
     const [items,    setItems]    = useState([]);
     const [loading,  setLoading]  = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -328,7 +329,7 @@ function VentasTab({ viajeId, readOnly }) {
 
     return (
         <div className="space-y-2.5">
-            <SectionHeader count={items.length} total={total} color="text-foreground">
+            <SectionHeader titulo={titulo} count={items.length} total={total} color="text-foreground">
                 {!readOnly && <AddButton onClick={() => showForm ? resetForm() : setShowForm(true)} open={showForm} />}
             </SectionHeader>
 
@@ -350,25 +351,27 @@ function VentasTab({ viajeId, readOnly }) {
                 </InlineForm>
             )}
 
-            {loading ? <Spinner />
-                : items.length === 0 ? <EmptyState msg="Sin ventas registradas. Agrega la primera." />
-                : items.map(i => (
-                    <ItemRow key={i.id}
-                        title={i.producto}
-                        line={`${i.cantidad} ${i.unidad} × $${fmt(i.precio_unitario)} = $${fmt(Number(i.cantidad) * Number(i.precio_unitario))}`}
-                        date={fmtDate(i.fecha)}
-                        note={i.notas}
-                        onEdit={!readOnly ? () => startEdit(i) : null}
-                        onDelete={!readOnly ? () => del(i.id) : null}
-                    />
-                ))
-            }
+            <div className="rounded-xl border border-border bg-muted p-2.5 space-y-2.5">
+                {loading ? <Spinner />
+                    : items.length === 0 ? <EmptyState msg="Sin ventas registradas. Agrega la primera." />
+                    : items.map(i => (
+                        <ItemRow key={i.id}
+                            title={i.producto}
+                            line={`${i.cantidad} ${i.unidad} × $${fmt(i.precio_unitario)} = $${fmt(Number(i.cantidad) * Number(i.precio_unitario))}`}
+                            date={fmtDate(i.fecha)}
+                            note={i.notas}
+                            onEdit={!readOnly ? () => startEdit(i) : null}
+                            onDelete={!readOnly ? () => del(i.id) : null}
+                        />
+                    ))
+                }
+            </div>
         </div>
     );
 }
 
 /* ── Costos Tab ─────────────────────────────────────────── */
-function CostosTab({ viajeId, readOnly }) {
+function CostosTab({ viajeId, readOnly, titulo }) {
     const [items,    setItems]    = useState([]);
     const [loading,  setLoading]  = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -413,7 +416,7 @@ function CostosTab({ viajeId, readOnly }) {
 
     return (
         <div className="space-y-2.5">
-            <SectionHeader count={items.length} total={total} color="text-foreground">
+            <SectionHeader titulo={titulo} count={items.length} total={total} color="text-foreground">
                 {!readOnly && <AddButton onClick={() => showForm ? resetForm() : setShowForm(true)} open={showForm} />}
             </SectionHeader>
 
@@ -430,21 +433,23 @@ function CostosTab({ viajeId, readOnly }) {
                 </InlineForm>
             )}
 
-            {loading ? <Spinner />
-                : items.length === 0 ? <EmptyState msg="Sin costos adicionales. Agrega el primero." />
-                : items.map(i => {
-                    const Icon = TIPO_ICON[i.tipo] ?? Tag;
-                    return (
-                    <ItemRow key={i.id}
-                        title={<span className="inline-flex items-center gap-1.5"><Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" /> {i.descripcion}</span>}
-                        line={`${TIPO_LABEL(i.tipo)} · $${fmt(i.monto)}`}
-                        date={fmtDate(i.fecha)}
-                        onEdit={!readOnly ? () => startEdit(i) : null}
-                        onDelete={!readOnly ? () => del(i.id) : null}
-                    />
-                    );
-                })
-            }
+            <div className="rounded-xl border border-border bg-muted p-2.5 space-y-2.5">
+                {loading ? <Spinner />
+                    : items.length === 0 ? <EmptyState msg="Sin costos adicionales. Agrega el primero." />
+                    : items.map(i => {
+                        const Icon = TIPO_ICON[i.tipo] ?? Tag;
+                        return (
+                        <ItemRow key={i.id}
+                            title={<span className="inline-flex items-center gap-1.5"><Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" /> {i.descripcion}</span>}
+                            line={`${TIPO_LABEL(i.tipo)} · $${fmt(i.monto)}`}
+                            date={fmtDate(i.fecha)}
+                            onEdit={!readOnly ? () => startEdit(i) : null}
+                            onDelete={!readOnly ? () => del(i.id) : null}
+                        />
+                        );
+                    })
+                }
+            </div>
         </div>
     );
 }
@@ -597,16 +602,6 @@ function Row({ label, value, color, bold }) {
     );
 }
 
-/* ── Sección con título (fases apiladas) ─────────────────── */
-function Seccion({ titulo, children }) {
-    return (
-        <section>
-            <h2 className="text-sm font-semibold text-stone-500 dark:text-slate-400 uppercase tracking-wider mb-2">{titulo}</h2>
-            {children}
-        </section>
-    );
-}
-
 /* ── Main Page ──────────────────────────────────────────── */
 export default function ViajeDetallePage() {
     const { id }  = useParams();
@@ -739,17 +734,13 @@ export default function ViajeDetallePage() {
 
             {/* Secciones según la fase activa */}
             {activeStep === 'preparacion' && (
-                <div className="space-y-5">
-                    <Seccion titulo="Compras"><ComprasTab viajeId={id} readOnly={isClosed} /></Seccion>
-                    <Seccion titulo="Costos iniciales"><CostosTab viajeId={id} readOnly={isClosed} /></Seccion>
+                <div className="space-y-6">
+                    <ComprasTab viajeId={id} readOnly={isClosed} titulo="Compras" />
+                    <CostosTab  viajeId={id} readOnly={isClosed} titulo="Costos iniciales" />
                 </div>
             )}
-            {activeStep === 'en_curso' && (
-                <Seccion titulo="Costos del viaje"><CostosTab viajeId={id} readOnly={isClosed} /></Seccion>
-            )}
-            {activeStep === 'ventas' && (
-                <Seccion titulo="Ventas"><VentasTab viajeId={id} readOnly={isClosed} /></Seccion>
-            )}
+            {activeStep === 'en_curso' && <CostosTab viajeId={id} readOnly={isClosed} titulo="Costos del viaje" />}
+            {activeStep === 'ventas'   && <VentasTab viajeId={id} readOnly={isClosed} titulo="Ventas" />}
             {activeStep === 'resumen'  && <ResumenTab viajeId={id} />}
 
             {/* Acción de la fase punta (avanzar / cerrar) */}
