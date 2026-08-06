@@ -11,7 +11,7 @@ export default function DashboardLayout({ children }) {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-[#fafaf9] dark:bg-[#0f172a]">
+            <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-[#0f172a]">
                 <div className="w-7 h-7 rounded-full border-[3px] border-stone-200 border-t-blue-600 animate-spin" />
             </div>
         );
@@ -24,7 +24,7 @@ export default function DashboardLayout({ children }) {
     const isNewViaje = pathname === '/dashboard/viajes/nuevo';
 
     return (
-        <div className="min-h-screen flex flex-col bg-[#fafaf9] dark:bg-[#0f172a]">
+        <div className="min-h-screen flex flex-col bg-[#f8fafc] dark:bg-[#0f172a]">
             {/* Header */}
             <header className="bg-white dark:bg-slate-900 border-b border-stone-200 dark:border-slate-700 sticky top-0 z-10">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
@@ -63,6 +63,16 @@ export default function DashboardLayout({ children }) {
                             }`}
                         >
                             + Nuevo
+                        </button>
+                        <button
+                            onClick={() => router.push('/dashboard/inventario')}
+                            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                                pathname === '/dashboard/inventario'
+                                    ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/40 dark:text-blue-400'
+                                    : 'text-stone-600 dark:text-slate-400 hover:text-stone-900 dark:hover:text-slate-100 hover:bg-stone-100 dark:hover:bg-slate-700'
+                            }`}
+                        >
+                            Inventario
                         </button>
                     </nav>
 

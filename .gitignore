@@ -33,6 +33,15 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# MCP config (contiene token de acceso — nunca subir)
+.mcp.json
+
+# playwright (artefactos generados)
+/playwright-report/
+/test-results/
+/blob-report/
+/playwright/.cache/
+
 # vercel
 .vercel
 

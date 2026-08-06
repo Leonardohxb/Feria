@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import supabase from '@/lib/supabaseClient';
+import { useAuth } from '@/context/AuthContext';
 
 const UNIDADES    = ['kg', 'caja', 'unidad', 'saco', 'paca', 'otro'];
 const TIPOS_COSTO = ['administracion', 'obreros', 'comida', 'hotel', 'gasolina', 'gasoil', 'transporte', 'otro'];
@@ -50,6 +51,18 @@ function DeleteBtn({ onClick }) {
     );
 }
 
+function EditBtn({ onClick }) {
+    return (
+        <button
+            onClick={onClick}
+            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-md text-stone-300 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+            title="Editar"
+        >
+            ✎
+        </button>
+    );
+}
+
 /* ── Add button ─────────────────────────────────────────── */
 function AddButton({ onClick, open }) {
     return (
@@ -67,7 +80,7 @@ function AddButton({ onClick, open }) {
 }
 
 /* ── Item row ───────────────────────────────────────────── */
-function ItemRow({ title, line, date, note, onDelete }) {
+function ItemRow({ title, line, date, note, onEdit, onDelete }) {
     return (
         <div className="flex items-start gap-3 py-3 px-4 border-b border-stone-100 dark:border-slate-700 last:border-0 group">
             <div className="flex-1 min-w-0">
@@ -75,9 +88,10 @@ function ItemRow({ title, line, date, note, onDelete }) {
                 <p className="text-xs text-stone-500 dark:text-slate-400 mt-0.5 tabular">{line}</p>
                 <p className="text-xs text-stone-400 dark:text-slate-500 mt-0.5">{date}{note ? ` · ${note}` : ''}</p>
             </div>
-            {onDelete && (
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                    <DeleteBtn onClick={onDelete} />
+            {(onEdit || onDelete) && (
+                <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    {onEdit && <EditBtn onClick={onEdit} />}
+                    {onDelete && <DeleteBtn onClick={onDelete} />}
                 </div>
             )}
         </div>
@@ -96,6 +110,74 @@ function SectionHeader({ count, total, color, children }) {
                 {children}
             </div>
         </div>
+    );
+}
+
+/* ── Catálogo de productos (compartido por Compras/Ventas) ─ */
+function useProductos() {
+    const { user } = useAuth();
+    const [productos, setProductos] = useState([]);
+
+    const load = useCallback(async () => {
+        if (!user) return;
+        const { data } = await supabase.from('productos').select('*').eq('activo', true).order('nombre');
+        setProductos(data ?? []);
+    }, [user]);
+
+    useEffect(() => { load(); }, [load]);
+
+    return { productos, reload: load, userId: user?.id };
+}
+
+/* ── Select de producto, con opción de crear uno nuevo ────── */
+function ProductoField({ value, onChange, productos, onCreated, userId }) {
+    const [creating, setCreating] = useState(false);
+    const [newName,  setNewName]  = useState('');
+    const [error,    setError]    = useState('');
+
+    async function handleCreate() {
+        const nombre = newName.trim();
+        if (!nombre) return;
+        const { data, error: dbErr } = await supabase
+            .from('productos').insert({ user_id: userId, nombre }).select().single();
+        if (dbErr) return setError('Ya existe un item con ese nombre.');
+        onCreated(data);
+        onChange(data.nombre);
+        setNewName('');
+        setError('');
+        setCreating(false);
+    }
+
+    if (creating) {
+        return (
+            <div className="col-span-2 flex gap-2">
+                <input
+                    autoFocus placeholder="Nombre del nuevo item"
+                    value={newName} onChange={e => setNewName(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCreate(); } }}
+                    className="input-base flex-1"
+                />
+                <button type="button" onClick={handleCreate} className="btn-secondary text-sm px-3 shrink-0" style={{ width: 'auto' }}>
+                    Crear
+                </button>
+                <button type="button" onClick={() => { setCreating(false); setError(''); }} className="text-stone-400 hover:text-stone-600 shrink-0 px-1">
+                    ✕
+                </button>
+                {error && <p className="text-xs text-red-500 col-span-2">{error}</p>}
+            </div>
+        );
+    }
+
+    return (
+        <select
+            required value={value}
+            onChange={e => e.target.value === '__nuevo__' ? setCreating(true) : onChange(e.target.value)}
+            className="input-base col-span-2"
+        >
+            <option value="" disabled>Selecciona un producto...</option>
+            {productos.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
+            <option value="__nuevo__">+ Crear nuevo item...</option>
+        </select>
     );
 }
 
@@ -121,7 +203,10 @@ function ComprasTab({ viajeId, readOnly }) {
     const [loading,   setLoading]   = useState(true);
     const [showForm,  setShowForm]  = useState(false);
     const [saving,    setSaving]    = useState(false);
-    const [form, setForm] = useState({ producto: '', cantidad: '', unidad: 'kg', precio_unitario: '', fecha: today(), notas: '' });
+    const [editId,    setEditId]    = useState(null);
+    const EMPTY = { producto: '', cantidad: '', unidad: 'kg', precio_unitario: '', fecha: today(), notas: '' };
+    const [form, setForm] = useState(EMPTY);
+    const { productos, reload: reloadProductos, userId } = useProductos();
 
     const load = useCallback(async () => {
         const { data } = await supabase.from('compras').select('*').eq('viaje_id', viajeId).order('fecha', { ascending: false });
@@ -132,19 +217,26 @@ function ComprasTab({ viajeId, readOnly }) {
     useEffect(() => { load(); }, [load]);
 
     function sf(k) { return e => setForm(f => ({ ...f, [k]: e.target.value })); }
+    function resetForm() { setForm(EMPTY); setEditId(null); setShowForm(false); }
+    function startEdit(i) {
+        setForm({ producto: i.producto, cantidad: String(i.cantidad), unidad: i.unidad, precio_unitario: String(i.precio_unitario), fecha: i.fecha, notas: i.notas ?? '' });
+        setEditId(i.id);
+        setShowForm(true);
+    }
 
-    async function handleAdd(e) {
+    async function handleSubmit(e) {
         e.preventDefault();
         setSaving(true);
-        await supabase.from('compras').insert({
+        const payload = {
             viaje_id: viajeId, producto: form.producto,
             cantidad: Number(form.cantidad), unidad: form.unidad,
             precio_unitario: Number(form.precio_unitario),
             fecha: form.fecha, notas: form.notas || null,
-        });
-        setForm({ producto: '', cantidad: '', unidad: 'kg', precio_unitario: '', fecha: today(), notas: '' });
-        setShowForm(false);
+        };
+        if (editId) await supabase.from('compras').update(payload).eq('id', editId);
+        else        await supabase.from('compras').insert(payload);
         setSaving(false);
+        resetForm();
         load();
     }
 
@@ -155,12 +247,17 @@ function ComprasTab({ viajeId, readOnly }) {
     return (
         <div className="card p-0 overflow-hidden">
             <SectionHeader count={items.length} total={total} color="text-orange-600">
-                {!readOnly && <AddButton onClick={() => setShowForm(s => !s)} open={showForm} />}
+                {!readOnly && <AddButton onClick={() => showForm ? resetForm() : setShowForm(true)} open={showForm} />}
             </SectionHeader>
 
             {showForm && (
-                <InlineForm onSubmit={handleAdd} saving={saving} label="Guardar compra">
-                    <input required placeholder="Producto" value={form.producto} onChange={sf('producto')} className="input-base col-span-2" />
+                <InlineForm onSubmit={handleSubmit} saving={saving} label={editId ? 'Guardar cambios' : 'Guardar compra'}>
+                    <ProductoField
+                        value={form.producto}
+                        onChange={v => setForm(f => ({ ...f, producto: v }))}
+                        productos={productos} userId={userId}
+                        onCreated={() => reloadProductos()}
+                    />
                     <input required type="number" step="0.01" min="0.01" placeholder="Cantidad" value={form.cantidad} onChange={sf('cantidad')} className="input-base" />
                     <select value={form.unidad} onChange={sf('unidad')} className="input-base">
                         {UNIDADES.map(u => <option key={u}>{u}</option>)}
@@ -179,6 +276,7 @@ function ComprasTab({ viajeId, readOnly }) {
                         line={`${i.cantidad} ${i.unidad} × $${fmt(i.precio_unitario)} = $${fmt(Number(i.cantidad) * Number(i.precio_unitario))}`}
                         date={fmtDate(i.fecha)}
                         note={i.notas}
+                        onEdit={!readOnly ? () => startEdit(i) : null}
                         onDelete={!readOnly ? () => del(i.id) : null}
                     />
                 ))
@@ -193,7 +291,10 @@ function VentasTab({ viajeId, readOnly }) {
     const [loading,  setLoading]  = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [saving,   setSaving]   = useState(false);
-    const [form, setForm] = useState({ producto: '', cantidad: '', unidad: 'kg', precio_unitario: '', fecha: today(), notas: '' });
+    const [editId,   setEditId]   = useState(null);
+    const EMPTY = { producto: '', cantidad: '', unidad: 'kg', precio_unitario: '', fecha: today(), notas: '' };
+    const [form, setForm] = useState(EMPTY);
+    const { productos, reload: reloadProductos, userId } = useProductos();
 
     const load = useCallback(async () => {
         const { data } = await supabase.from('ventas').select('*').eq('viaje_id', viajeId).order('fecha', { ascending: false });
@@ -204,19 +305,26 @@ function VentasTab({ viajeId, readOnly }) {
     useEffect(() => { load(); }, [load]);
 
     function sf(k) { return e => setForm(f => ({ ...f, [k]: e.target.value })); }
+    function resetForm() { setForm(EMPTY); setEditId(null); setShowForm(false); }
+    function startEdit(i) {
+        setForm({ producto: i.producto, cantidad: String(i.cantidad), unidad: i.unidad, precio_unitario: String(i.precio_unitario), fecha: i.fecha, notas: i.notas ?? '' });
+        setEditId(i.id);
+        setShowForm(true);
+    }
 
-    async function handleAdd(e) {
+    async function handleSubmit(e) {
         e.preventDefault();
         setSaving(true);
-        await supabase.from('ventas').insert({
+        const payload = {
             viaje_id: viajeId, producto: form.producto,
             cantidad: Number(form.cantidad), unidad: form.unidad,
             precio_unitario: Number(form.precio_unitario),
             fecha: form.fecha, notas: form.notas || null,
-        });
-        setForm({ producto: '', cantidad: '', unidad: 'kg', precio_unitario: '', fecha: today(), notas: '' });
-        setShowForm(false);
+        };
+        if (editId) await supabase.from('ventas').update(payload).eq('id', editId);
+        else        await supabase.from('ventas').insert(payload);
         setSaving(false);
+        resetForm();
         load();
     }
 
@@ -226,13 +334,18 @@ function VentasTab({ viajeId, readOnly }) {
 
     return (
         <div className="card p-0 overflow-hidden">
-            <SectionHeader count={items.length} total={total} color="text-blue-600">
-                {!readOnly && <AddButton onClick={() => setShowForm(s => !s)} open={showForm} />}
+            <SectionHeader count={items.length} total={total} color="text-green-600">
+                {!readOnly && <AddButton onClick={() => showForm ? resetForm() : setShowForm(true)} open={showForm} />}
             </SectionHeader>
 
             {showForm && (
-                <InlineForm onSubmit={handleAdd} saving={saving} label="Guardar venta">
-                    <input required placeholder="Producto" value={form.producto} onChange={sf('producto')} className="input-base col-span-2" />
+                <InlineForm onSubmit={handleSubmit} saving={saving} label={editId ? 'Guardar cambios' : 'Guardar venta'}>
+                    <ProductoField
+                        value={form.producto}
+                        onChange={v => setForm(f => ({ ...f, producto: v }))}
+                        productos={productos} userId={userId}
+                        onCreated={() => reloadProductos()}
+                    />
                     <input required type="number" step="0.01" min="0.01" placeholder="Cantidad" value={form.cantidad} onChange={sf('cantidad')} className="input-base" />
                     <select value={form.unidad} onChange={sf('unidad')} className="input-base">
                         {UNIDADES.map(u => <option key={u}>{u}</option>)}
@@ -251,6 +364,7 @@ function VentasTab({ viajeId, readOnly }) {
                         line={`${i.cantidad} ${i.unidad} × $${fmt(i.precio_unitario)} = $${fmt(Number(i.cantidad) * Number(i.precio_unitario))}`}
                         date={fmtDate(i.fecha)}
                         note={i.notas}
+                        onEdit={!readOnly ? () => startEdit(i) : null}
                         onDelete={!readOnly ? () => del(i.id) : null}
                     />
                 ))
@@ -265,7 +379,9 @@ function CostosTab({ viajeId, readOnly }) {
     const [loading,  setLoading]  = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [saving,   setSaving]   = useState(false);
-    const [form, setForm] = useState({ tipo: 'obreros', descripcion: '', monto: '', fecha: today() });
+    const [editId,   setEditId]   = useState(null);
+    const EMPTY = { tipo: 'obreros', descripcion: '', monto: '', fecha: today() };
+    const [form, setForm] = useState(EMPTY);
 
     const load = useCallback(async () => {
         const { data } = await supabase.from('costos_adicionales').select('*').eq('viaje_id', viajeId).order('fecha', { ascending: false });
@@ -276,17 +392,24 @@ function CostosTab({ viajeId, readOnly }) {
     useEffect(() => { load(); }, [load]);
 
     function sf(k) { return e => setForm(f => ({ ...f, [k]: e.target.value })); }
+    function resetForm() { setForm(EMPTY); setEditId(null); setShowForm(false); }
+    function startEdit(i) {
+        setForm({ tipo: i.tipo, descripcion: i.descripcion, monto: String(i.monto), fecha: i.fecha });
+        setEditId(i.id);
+        setShowForm(true);
+    }
 
-    async function handleAdd(e) {
+    async function handleSubmit(e) {
         e.preventDefault();
         setSaving(true);
-        await supabase.from('costos_adicionales').insert({
+        const payload = {
             viaje_id: viajeId, tipo: form.tipo,
             descripcion: form.descripcion, monto: Number(form.monto), fecha: form.fecha,
-        });
-        setForm({ tipo: 'obreros', descripcion: '', monto: '', fecha: today() });
-        setShowForm(false);
+        };
+        if (editId) await supabase.from('costos_adicionales').update(payload).eq('id', editId);
+        else        await supabase.from('costos_adicionales').insert(payload);
         setSaving(false);
+        resetForm();
         load();
     }
 
@@ -296,12 +419,12 @@ function CostosTab({ viajeId, readOnly }) {
 
     return (
         <div className="card p-0 overflow-hidden">
-            <SectionHeader count={items.length} total={total} color="text-blue-600">
-                {!readOnly && <AddButton onClick={() => setShowForm(s => !s)} open={showForm} />}
+            <SectionHeader count={items.length} total={total} color="text-amber-600">
+                {!readOnly && <AddButton onClick={() => showForm ? resetForm() : setShowForm(true)} open={showForm} />}
             </SectionHeader>
 
             {showForm && (
-                <InlineForm onSubmit={handleAdd} saving={saving} label="Guardar costo">
+                <InlineForm onSubmit={handleSubmit} saving={saving} label={editId ? 'Guardar cambios' : 'Guardar costo'}>
                     <select value={form.tipo} onChange={sf('tipo')} className="input-base">
                         {TIPOS_COSTO.map(t => (
                             <option key={t} value={t}>{TIPO_ICON[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>
@@ -320,6 +443,7 @@ function CostosTab({ viajeId, readOnly }) {
                         title={`${TIPO_ICON[i.tipo] ?? '📌'} ${i.descripcion}`}
                         line={`${i.tipo} · $${fmt(i.monto)}`}
                         date={fmtDate(i.fecha)}
+                        onEdit={!readOnly ? () => startEdit(i) : null}
                         onDelete={!readOnly ? () => del(i.id) : null}
                     />
                 ))
@@ -336,14 +460,23 @@ function ResumenTab({ viajeId }) {
     useEffect(() => {
         async function load() {
             const [cR, vR, kR] = await Promise.all([
-                supabase.from('compras').select('cantidad,precio_unitario').eq('viaje_id', viajeId),
-                supabase.from('ventas').select('cantidad,precio_unitario').eq('viaje_id', viajeId),
+                supabase.from('compras').select('producto,cantidad,unidad,precio_unitario').eq('viaje_id', viajeId),
+                supabase.from('ventas').select('producto,cantidad,unidad,precio_unitario').eq('viaje_id', viajeId),
                 supabase.from('costos_adicionales').select('monto').eq('viaje_id', viajeId),
             ]);
-            const totalCompras = (cR.data ?? []).reduce((s, i) => s + Number(i.cantidad) * Number(i.precio_unitario), 0);
-            const totalVentas  = (vR.data ?? []).reduce((s, i) => s + Number(i.cantidad) * Number(i.precio_unitario), 0);
+            const compras = cR.data ?? [], ventas = vR.data ?? [];
+            const totalCompras = compras.reduce((s, i) => s + Number(i.cantidad) * Number(i.precio_unitario), 0);
+            const totalVentas  = ventas.reduce((s, i) => s + Number(i.cantidad) * Number(i.precio_unitario), 0);
             const totalCostos  = (kR.data ?? []).reduce((s, i) => s + Number(i.monto), 0);
-            setData({ totalCompras, totalVentas, totalCostos });
+
+            // Sobrante por producto: comprado vs vendido (por nombre de producto)
+            const prod = {};
+            const ensure = (nombre, unidad) => (prod[nombre] ??= { nombre, unidad, comprado: 0, vendido: 0 });
+            compras.forEach(i => { ensure(i.producto, i.unidad).comprado += Number(i.cantidad); });
+            ventas.forEach(i  => { const p = ensure(i.producto, i.unidad); p.vendido += Number(i.cantidad); if (!p.unidad) p.unidad = i.unidad; });
+            const sobrantes = Object.values(prod).sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+            setData({ totalCompras, totalVentas, totalCostos, sobrantes });
             setLoading(false);
         }
         load();
@@ -351,7 +484,7 @@ function ResumenTab({ viajeId }) {
 
     if (loading) return <Spinner />;
 
-    const { totalCompras, totalVentas, totalCostos } = data;
+    const { totalCompras, totalVentas, totalCostos, sobrantes } = data;
     const bruta = totalVentas - totalCompras;
     const neta  = bruta - totalCostos;
 
@@ -362,16 +495,18 @@ function ResumenTab({ viajeId }) {
 
             {/* Tres totales */}
             <div className="grid grid-cols-3 gap-3">
-                {[
-                    { label: 'Ventas',  value: totalVentas,  color: 'text-blue-600',   border: 'border-blue-200',   bg: 'bg-blue-50'   },
-                    { label: 'Compras', value: totalCompras, color: 'text-orange-600', border: 'border-orange-200', bg: 'bg-orange-50' },
-                    { label: 'Costos',  value: totalCostos,  color: 'text-blue-600',   border: 'border-blue-200',   bg: 'bg-blue-50'   },
-                ].map(s => (
-                    <div key={s.label} className={`card py-3 px-3 border ${s.border} ${s.bg}`}>
-                        <p className="text-xs text-stone-500 mb-1">{s.label}</p>
-                        <p className={`text-base font-semibold tabular ${s.color}`}>${fmt(s.value)}</p>
-                    </div>
-                ))}
+                <div className="stat-tile stat-green">
+                    <p className="stat-label">Ventas</p>
+                    <p className="stat-value">${fmt(totalVentas)}</p>
+                </div>
+                <div className="stat-tile stat-orange">
+                    <p className="stat-label">Compras</p>
+                    <p className="stat-value">${fmt(totalCompras)}</p>
+                </div>
+                <div className="stat-tile stat-amber">
+                    <p className="stat-label">Costos</p>
+                    <p className="stat-value">${fmt(totalCostos)}</p>
+                </div>
             </div>
 
             {/* Cálculo */}
@@ -380,22 +515,56 @@ function ResumenTab({ viajeId }) {
                     <p className="text-xs font-semibold text-stone-500 dark:text-slate-400 uppercase tracking-wider">Cálculo de ganancia</p>
                 </div>
                 <div className="divide-y divide-stone-100 dark:divide-slate-700">
-                    <Row label="Ingresos por ventas"  value={`+ $${fmt(totalVentas)}`}  color="text-blue-600" />
-                    <Row label="Costo de compras"      value={`− $${fmt(totalCompras)}`} color="text-orange-600" />
+                    <Row label="Ingresos por ventas"  value={`+ $${fmt(totalVentas)}`}  color="text-green-600 dark:text-green-400" />
+                    <Row label="Costo de compras"      value={`− $${fmt(totalCompras)}`} color="text-orange-600 dark:text-orange-400" />
                     <Row label="Ganancia bruta" bold
-                        value={(bruta >= 0 ? '+ ' : '') + `$${fmt(bruta)}`}
-                        color={bruta >= 0 ? 'text-blue-600' : 'text-red-600'} />
-                    <Row label="Costos adicionales"   value={`− $${fmt(totalCostos)}`}  color="text-blue-600" />
+                        value={(bruta >= 0 ? '+ ' : '− ') + `$${fmt(Math.abs(bruta))}`}
+                        color={bruta >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'} />
+                    <Row label="Costos adicionales"   value={`− $${fmt(totalCostos)}`}  color="text-amber-600 dark:text-amber-400" />
                     <div className="px-4 py-4 bg-stone-50 dark:bg-slate-800">
                         <div className="flex items-center justify-between">
                             <p className="text-sm font-semibold text-stone-900 dark:text-slate-100">Ganancia neta</p>
-                            <p className={`text-xl font-bold tabular ${neta >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                                {neta >= 0 ? '+' : ''}${fmt(neta)}
+                            <p className={`text-xl font-bold tabular ${neta >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                {neta >= 0 ? '+' : '−'}${fmt(Math.abs(neta))}
                             </p>
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* Sobrante por producto */}
+            {sobrantes.length > 0 && (
+                <div className="card p-0 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-stone-100 dark:border-slate-700">
+                        <p className="text-xs font-semibold text-stone-500 dark:text-slate-400 uppercase tracking-wider">Sobrante por producto</p>
+                    </div>
+                    <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 text-xs">
+                        <div className="contents text-stone-400 dark:text-slate-500 font-medium">
+                            <span className="px-4 py-2">Producto</span>
+                            <span className="px-2 py-2 text-right tabular">Comprado</span>
+                            <span className="px-2 py-2 text-right tabular">Vendido</span>
+                            <span className="px-4 py-2 text-right tabular">Sobrante</span>
+                        </div>
+                        {sobrantes.map(p => {
+                            const sob = p.comprado - p.vendido;
+                            const faltante = sob < 0;
+                            return (
+                                <div key={p.nombre} className="contents group">
+                                    <span className="px-4 py-2.5 text-sm text-stone-800 dark:text-slate-200 border-t border-stone-100 dark:border-slate-700 truncate">{p.nombre}</span>
+                                    <span className="px-2 py-2.5 text-sm text-stone-500 dark:text-slate-400 text-right tabular border-t border-stone-100 dark:border-slate-700">{fmt(p.comprado)}</span>
+                                    <span className="px-2 py-2.5 text-sm text-stone-500 dark:text-slate-400 text-right tabular border-t border-stone-100 dark:border-slate-700">{fmt(p.vendido)}</span>
+                                    <span className={`px-4 py-2.5 text-sm font-medium text-right tabular border-t border-stone-100 dark:border-slate-700 ${faltante ? 'text-red-600 dark:text-red-400' : sob > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
+                                        {fmt(sob)} <span className="text-stone-400 dark:text-slate-500 font-normal">{p.unidad}</span>
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <p className="px-4 py-2.5 text-xs text-stone-400 dark:text-slate-500 border-t border-stone-100 dark:border-slate-700">
+                        Sobrante positivo = mercancía sin vender · negativo = se vendió más de lo comprado
+                    </p>
+                </div>
+            )}
 
             {noData && (
                 <div className="card border-dashed text-center py-8">
@@ -412,8 +581,8 @@ function ResumenTab({ viajeId }) {
                 </div>
             )}
             {!noData && neta >= 0 && (
-                <div className="card border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950">
-                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                <div className="card border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-950">
+                    <p className="text-sm text-green-700 dark:text-green-400">
                         Ganancia neta: <span className="font-semibold tabular">${fmt(neta)}</span>
                     </p>
                 </div>

@@ -195,6 +195,50 @@ html, body {
 .dark .badge-blue  { background: #1e3a5f; color: #93c5fd; }
 .dark .badge-amber { background: #451a03; color: #fcd34d; }
 
+/* ── Stat tiles (semantic, dark-aware) ───────────────────── */
+.stat-tile {
+  border-radius: 12px;
+  border:        1px solid var(--border);
+  background:    var(--surface);
+  padding:       0.875rem 1rem;
+  transition:    border-color 0.15s, box-shadow 0.15s;
+}
+.stat-tile .stat-label { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.25rem; }
+.stat-tile .stat-value { font-size: 1.05rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.stat-green  { background: #f0fdf4; border-color: #bbf7d0; }
+.stat-green  .stat-value { color: #16a34a; }
+.stat-orange { background: #fff7ed; border-color: #fed7aa; }
+.stat-orange .stat-value { color: #ea580c; }
+.stat-amber  { background: #fffbeb; border-color: #fde68a; }
+.stat-amber  .stat-value { color: #d97706; }
+.stat-blue   { background: var(--primary-light); border-color: #bfdbfe; }
+.stat-blue   .stat-value { color: var(--primary); }
+.stat-red    { background: var(--danger-bg); border-color: var(--danger-border); }
+.stat-red    .stat-value { color: var(--danger); }
+
+.dark .stat-green  { background: #052e16; border-color: #14532d; }
+.dark .stat-green  .stat-value { color: #4ade80; }
+.dark .stat-orange { background: #2c1608; border-color: #7c2d12; }
+.dark .stat-orange .stat-value { color: #fb923c; }
+.dark .stat-amber  { background: #2c1c04; border-color: #78350f; }
+.dark .stat-amber  .stat-value { color: #fbbf24; }
+.dark .stat-blue   { background: #1e3a5f; border-color: #1e40af; }
+.dark .stat-blue   .stat-value { color: #93c5fd; }
+.dark .stat-red    { background: #2c0a0a; border-color: #7f1d1d; }
+.dark .stat-red    .stat-value { color: #f87171; }
+
+/* ── Icon chip (dashboard) ───────────────────────────────── */
+.icon-chip {
+  width: 2.25rem; height: 2.25rem; flex-shrink: 0;
+  border-radius: 0.5rem;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.125rem;
+  background: var(--primary-light);
+  border: 1px solid #bfdbfe;
+}
+.dark .icon-chip { background: #1e3a5f; border-color: #1e40af; }
+
 /* ── Skeleton loader ─────────────────────────────────────── */
 .skeleton {
   background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 50%, var(--surface-2) 75%);

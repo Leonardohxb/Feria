@@ -26,7 +26,7 @@ export default function ForgotPasswordPage() {
 
     if (sent) {
         return (
-            <main className="min-h-screen bg-[#fafaf9] dark:bg-[#0f172a] flex items-center justify-center px-4 py-12">
+            <main className="min-h-screen bg-[#f8fafc] dark:bg-[#0f172a] flex items-center justify-center px-4 py-12">
                 <div className="card max-w-sm w-full text-center animate-fade-in py-10">
                     <div className="text-4xl mb-4">📧</div>
                     <h2 className="text-lg font-semibold text-stone-900 dark:text-slate-100 mb-2 text-balance">Revisa tu correo</h2>
@@ -42,7 +42,7 @@ export default function ForgotPasswordPage() {
     }
 
     return (
-        <main className="min-h-screen bg-[#fafaf9] dark:bg-[#0f172a] flex items-center justify-center px-4 py-12">
+        <main className="min-h-screen bg-[#f8fafc] dark:bg-[#0f172a] flex items-center justify-center px-4 py-12">
             <div className="w-full max-w-sm animate-fade-in">
 
                 {/* Logo */}

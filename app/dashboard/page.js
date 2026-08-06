@@ -4,6 +4,10 @@ import { useRouter } from 'next/navigation';
 import supabase from '@/lib/supabaseClient';
 import { useAuth } from '@/context/AuthContext';
 
+function fmt(n) {
+    return Number(n ?? 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export default function DashboardPage() {
     const { user, profile } = useAuth();
     const router = useRouter();
@@ -12,16 +16,40 @@ export default function DashboardPage() {
 
     useEffect(() => {
         if (!user) return;
-        supabase
-            .from('viajes')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .then(({ data }) => { setViajes(data ?? []); setLoading(false); });
+        async function load() {
+            const [viajesR, comprasR, ventasR, costosR] = await Promise.all([
+                supabase.from('viajes').select('*').order('created_at', { ascending: false }),
+                supabase.from('compras').select('viaje_id,cantidad,precio_unitario'),
+                supabase.from('ventas').select('viaje_id,cantidad,precio_unitario'),
+                supabase.from('costos_adicionales').select('viaje_id,monto'),
+            ]);
+
+            // Agregación por viaje (respeta RLS: solo llegan filas del dueño)
+            const acc = {};
+            const ensure = id => (acc[id] ??= { compras: 0, ventas: 0, costos: 0 });
+            (comprasR.data ?? []).forEach(c => { ensure(c.viaje_id).compras += Number(c.cantidad) * Number(c.precio_unitario); });
+            (ventasR.data  ?? []).forEach(v => { ensure(v.viaje_id).ventas  += Number(v.cantidad) * Number(v.precio_unitario); });
+            (costosR.data  ?? []).forEach(k => { ensure(k.viaje_id).costos  += Number(k.monto); });
+
+            const conTotales = (viajesR.data ?? []).map(v => {
+                const t = acc[v.id] ?? { compras: 0, ventas: 0, costos: 0 };
+                return { ...v, ...t, ganancia: t.ventas - t.compras - t.costos };
+            });
+
+            setViajes(conTotales);
+            setLoading(false);
+        }
+        load();
     }, [user]);
 
     const hora    = new Date().getHours();
     const saludo  = hora < 12 ? 'Buenos días' : hora < 18 ? 'Buenas tardes' : 'Buenas noches';
     const activos = viajes.filter(v => v.estado === 'activo').length;
+
+    // Resumen global acumulado
+    const totalVentas   = viajes.reduce((s, v) => s + v.ventas, 0);
+    const totalInvertido = viajes.reduce((s, v) => s + v.compras + v.costos, 0);
+    const gananciaTotal = totalVentas - totalInvertido;
 
     return (
         <div className="animate-fade-in space-y-7">
@@ -47,22 +75,24 @@ export default function DashboardPage() {
                 </button>
             </div>
 
-            {/* Stats — solo cuando hay viajes */}
-            {viajes.length > 0 && (
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="card flex items-center gap-3 py-3 px-4">
-                        <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-lg shrink-0">🚛</div>
-                        <div>
-                            <p className="text-xl font-semibold text-stone-900 dark:text-slate-100 tabular">{viajes.length}</p>
-                            <p className="text-xs text-stone-500 dark:text-slate-400">Viajes totales</p>
-                        </div>
+            {/* Resumen global — solo cuando hay viajes */}
+            {!loading && viajes.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className={`stat-tile ${gananciaTotal >= 0 ? 'stat-green' : 'stat-red'}`}>
+                        <p className="stat-label">Ganancia total</p>
+                        <p className="stat-value">{gananciaTotal >= 0 ? '+' : '−'}${fmt(Math.abs(gananciaTotal))}</p>
                     </div>
-                    <div className="card flex items-center gap-3 py-3 px-4">
-                        <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-lg shrink-0">📍</div>
-                        <div>
-                            <p className="text-xl font-semibold text-stone-900 dark:text-slate-100 tabular">{activos}</p>
-                            <p className="text-xs text-stone-500 dark:text-slate-400">En curso</p>
-                        </div>
+                    <div className="stat-tile stat-blue">
+                        <p className="stat-label">Total vendido</p>
+                        <p className="stat-value">${fmt(totalVentas)}</p>
+                    </div>
+                    <div className="stat-tile stat-orange">
+                        <p className="stat-label">Total invertido</p>
+                        <p className="stat-value">${fmt(totalInvertido)}</p>
+                    </div>
+                    <div className="stat-tile">
+                        <p className="stat-label">Viajes · en curso</p>
+                        <p className="stat-value text-stone-800 dark:text-slate-100">{viajes.length} · {activos}</p>
                     </div>
                 </div>
             )}
@@ -102,33 +132,39 @@ export default function DashboardPage() {
                     </div>
                 ) : (
                     <div className="space-y-2">
-                        {viajes.map(v => (
-                            <button
-                                key={v.id}
-                                onClick={() => router.push(`/dashboard/viajes/${v.id}`)}
-                                className="w-full card text-left hover:border-blue-300 hover:shadow-sm group transition-all py-3.5 px-4"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-lg bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 flex items-center justify-center text-base shrink-0 group-hover:bg-blue-50 group-hover:border-blue-200 transition-colors">
-                                        🚛
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
+                        {viajes.map(v => {
+                            const sinDatos = v.ventas === 0 && v.compras === 0 && v.costos === 0;
+                            return (
+                                <button
+                                    key={v.id}
+                                    onClick={() => router.push(`/dashboard/viajes/${v.id}`)}
+                                    className="w-full card text-left hover:border-blue-300 hover:shadow-sm group transition-all py-3.5 px-4"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="icon-chip group-hover:border-blue-300 transition-colors">🚛</div>
+                                        <div className="flex-1 min-w-0">
                                             <p className="font-medium text-stone-900 dark:text-slate-100 text-sm truncate group-hover:text-blue-700 transition-colors">
                                                 {v.nombre}
                                             </p>
+                                            <p className="text-xs text-stone-400 dark:text-slate-500 mt-0.5">
+                                                {new Date(v.fecha_inicio + 'T00:00:00').toLocaleDateString('es-VE', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                {v.fecha_fin && ` — ${new Date(v.fecha_fin + 'T00:00:00').toLocaleDateString('es-VE', { day: 'numeric', month: 'short' })}`}
+                                            </p>
                                         </div>
-                                        <p className="text-xs text-stone-400 dark:text-slate-500 mt-0.5">
-                                            {new Date(v.fecha_inicio + 'T00:00:00').toLocaleDateString('es-VE', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                            {v.fecha_fin && ` — ${new Date(v.fecha_fin + 'T00:00:00').toLocaleDateString('es-VE', { day: 'numeric', month: 'short' })}`}
-                                        </p>
+                                        <div className="flex flex-col items-end gap-1 shrink-0">
+                                            <span className={`badge text-xs ${v.estado === 'activo' ? 'badge-blue' : 'badge-gray'}`}>
+                                                {v.estado === 'activo' ? 'Activo' : 'Cerrado'}
+                                            </span>
+                                            {!sinDatos && (
+                                                <span className={`text-sm font-semibold tabular ${v.ganancia >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                    {v.ganancia >= 0 ? '+' : '−'}${fmt(Math.abs(v.ganancia))}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
-                                    <span className={`shrink-0 badge text-xs ${v.estado === 'activo' ? 'badge-blue' : 'badge-gray'}`}>
-                                        {v.estado === 'activo' ? 'Activo' : 'Cerrado'}
-                                    </span>
-                                </div>
-                            </button>
-                        ))}
+                                </button>
+                            );
+                        })}
                     </div>
                 )}
             </section>

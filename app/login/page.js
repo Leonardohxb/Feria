@@ -34,7 +34,7 @@ export default function LoginPage() {
     }
 
     return (
-        <main className="min-h-screen bg-[#fafaf9] dark:bg-[#0f172a] flex items-center justify-center px-4 py-12">
+        <main className="min-h-screen bg-[#f8fafc] dark:bg-[#0f172a] flex items-center justify-center px-4 py-12">
             <div className="w-full max-w-sm animate-fade-in">
 
                 {/* Logo */}

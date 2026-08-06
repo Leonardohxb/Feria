@@ -66,7 +66,26 @@ COMMENT ON COLUMN public.viajes.estado IS 'activo: en curso. cerrado: finalizado
 
 
 -- ============================================================
--- 4. TABLA: compras
+-- 4. TABLA: productos
+--    Catálogo de hortalizas del dueño, reutilizable entre viajes.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS public.productos (
+  id         UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID    NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  nombre     TEXT    NOT NULL,
+  activo     BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, nombre)
+);
+
+CREATE INDEX IF NOT EXISTS idx_productos_user ON public.productos(user_id);
+
+COMMENT ON TABLE public.productos IS 'Catálogo de hortalizas del dueño, usado como sugerencia en compras/ventas.';
+
+
+-- ============================================================
+-- 5. TABLA: compras
 --    Lo que el dueño compró a los proveedores en el viaje.
 -- ============================================================
 
@@ -89,7 +108,7 @@ COMMENT ON COLUMN public.compras.precio_unitario  IS 'Precio pagado por unidad d
 
 
 -- ============================================================
--- 5. TABLA: ventas
+-- 6. TABLA: ventas
 --    Lo que el dueño vendió durante o después del viaje.
 -- ============================================================
 
@@ -111,7 +130,7 @@ COMMENT ON TABLE public.ventas IS 'Ventas de hortalizas realizadas durante el vi
 
 
 -- ============================================================
--- 6. TABLA: costos_adicionales
+-- 7. TABLA: costos_adicionales
 --    Gastos operativos del viaje: obreros, comida, hotel, gasolina, etc.
 -- ============================================================
 
@@ -132,7 +151,7 @@ COMMENT ON COLUMN public.costos_adicionales.tipo IS 'Categoría: administracion,
 
 
 -- ============================================================
--- 7. ROW LEVEL SECURITY
+-- 8. ROW LEVEL SECURITY
 --    El dueño solo accede a sus propios datos.
 -- ============================================================
 
@@ -154,6 +173,14 @@ ALTER TABLE public.viajes ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "viajes_own"
   ON public.viajes FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- productos
+ALTER TABLE public.productos ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "productos_own"
+  ON public.productos FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
@@ -195,7 +222,7 @@ CREATE POLICY "costos_own"
 
 
 -- ============================================================
--- 8. VISTA: resumen por viaje
+-- 9. VISTA: resumen por viaje
 -- ============================================================
 
 CREATE OR REPLACE VIEW public.v_resumen_viajes AS
