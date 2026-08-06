@@ -69,7 +69,10 @@ UPDATE public.viajes SET fase = 'ventas';
 
 - **Stepper**: indicador horizontal de 3 pasos (`Preparación · En curso · Ventas`) reemplazando la actual barra de pestañas subrayadas. Pasos alcanzados: clickeables. Pasos futuros: deshabilitados/atenuados. Paso activo: resaltado con los tokens neutros del tema (`text-foreground` / `border-foreground`).
 - **Acceso a Resumen**: un ítem fijo (botón "Resumen") junto al stepper que cambia `activeStep` a una vista `'resumen'` especial. Disponible en cualquier momento.
-- **Botón de avance**: debajo de las secciones de la fase punta. Etiqueta según fase (`Iniciar viaje` / `Registrar ventas` / `Cerrar viaje`). El de cerrar mantiene la confirmación actual (`confirm(...)`).
+- **Botón de avance**: debajo de las secciones de la fase punta. Etiqueta según fase (`Iniciar viaje` / `Registrar ventas` / `Cerrar viaje`). **Cada avance lanza una advertencia de confirmación** antes de aplicar el cambio (no bloquea por falta de datos, solo confirma la intención):
+  - `Iniciar viaje` → "¿Ya estás listo para empezar el viaje? Podrás volver a Preparación si necesitás corregir algo."
+  - `Registrar ventas` → "¿Pasar a registrar las ventas? Podrás volver a fases anteriores si hace falta."
+  - `Cerrar viaje` → confirmación actual ("¿Cerrar este viaje? No podrás agregar más registros.").
 - Estilo coherente con el tema neutro shadcn ya aplicado (sin colores de branding; rojo solo para acciones destructivas como cerrar).
 
 ## Componentes / cambios de código
@@ -89,7 +92,7 @@ UPDATE public.viajes SET fase = 'ventas';
 ## Casos borde
 
 - **Viaje recién creado**: `fase = 'preparacion'`, `activeStep = 'preparacion'`, se ven Compras + Costos. Ventas no aparece en el stepper como alcanzable.
-- **Avanzar sin datos**: se permite avanzar aunque no haya compras/costos (no se bloquea; el dueño decide). El botón no valida contenido.
+- **Avanzar sin datos**: no se bloquea por falta de compras/costos. Al tocar el botón de avance se lanza una advertencia de confirmación (ver "Botón de avance"); si el dueño confirma, avanza. No hay validación de contenido.
 - **Viaje cerrado**: `activeStep` navega libre, todo `readOnly`, Resumen como foco.
 - **Viajes migrados (previos)**: quedan en `fase = 'ventas'`, con las tres fases navegables, sin ocultar datos.
 
