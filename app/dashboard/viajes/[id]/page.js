@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, X, Pencil, ClipboardList, HardHat, Utensils, BedDouble, Fuel, Droplet, Truck, Tag } from 'lucide-react';
+import { FASES, FASE_META, faseAlcanzada, avanceConfig } from '@/lib/viajeFases.mjs';
 import supabase from '@/lib/supabaseClient';
 import { useAuth } from '@/context/AuthContext';
 
@@ -9,13 +10,6 @@ const UNIDADES    = ['kg', 'caja', 'unidad', 'saco', 'paca', 'otro'];
 const TIPOS_COSTO = ['administracion', 'obreros', 'comida', 'hotel', 'gasolina', 'gasoil', 'transporte', 'otro'];
 const TIPO_ICON   = { administracion: ClipboardList, obreros: HardHat, comida: Utensils, hotel: BedDouble, gasolina: Fuel, gasoil: Droplet, transporte: Truck, otro: Tag };
 const TIPO_LABEL  = t => t.charAt(0).toUpperCase() + t.slice(1);
-
-const TABS = [
-    { id: 'compras', label: 'Compras'  },
-    { id: 'ventas',  label: 'Ventas'   },
-    { id: 'costos',  label: 'Costos'   },
-    { id: 'resumen', label: 'Resumen'  },
-];
 
 function fmt(n) {
     return Number(n ?? 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -611,13 +605,29 @@ export default function ViajeDetallePage() {
     const router  = useRouter();
     const [viaje,      setViaje]      = useState(null);
     const [loading,    setLoading]    = useState(true);
-    const [activeTab,  setActiveTab]  = useState('compras');
+    const [activeStep, setActiveStep] = useState('preparacion');
+    const [advancing,  setAdvancing]  = useState(false);
     const [closing,    setClosing]    = useState(false);
 
     useEffect(() => {
         supabase.from('viajes').select('*').eq('id', id).single()
-            .then(({ data }) => { setViaje(data); setLoading(false); });
+            .then(({ data }) => {
+                setViaje(data);
+                setActiveStep(data?.fase ?? 'preparacion');
+                setLoading(false);
+            });
     }, [id]);
+
+    async function handleAvanzar() {
+        const cfg = avanceConfig(viaje.fase);
+        if (!cfg) return;
+        if (!confirm(cfg.confirm)) return;
+        setAdvancing(true);
+        await supabase.from('viajes').update({ fase: cfg.next }).eq('id', id);
+        setViaje(v => ({ ...v, fase: cfg.next }));
+        setActiveStep(cfg.next);
+        setAdvancing(false);
+    }
 
     async function handleCerrar() {
         if (!confirm('¿Cerrar este viaje? No podrás agregar más registros.')) return;
@@ -626,7 +636,7 @@ export default function ViajeDetallePage() {
         await supabase.from('viajes').update({ estado: 'cerrado', fecha_fin }).eq('id', id);
         setViaje(v => ({ ...v, estado: 'cerrado', fecha_fin }));
         setClosing(false);
-        setActiveTab('resumen');
+        setActiveStep('resumen');
     }
 
     if (loading) {
@@ -649,6 +659,8 @@ export default function ViajeDetallePage() {
     }
 
     const isClosed = viaje.estado === 'cerrado';
+    const cfg      = avanceConfig(viaje.fase);
+    const enPunta  = activeStep === viaje.fase;
 
     return (
         <div className="animate-fade-in space-y-5">
@@ -662,57 +674,87 @@ export default function ViajeDetallePage() {
                     <ArrowLeft className="w-3.5 h-3.5" /> Mis viajes
                 </button>
 
-                <div className="flex items-start justify-between gap-3">
-                    <div>
-                        <div className="flex items-center gap-2.5 flex-wrap">
-                            <h1 className="text-lg font-semibold text-stone-900 dark:text-slate-100">{viaje.nombre}</h1>
-                            <span className={`badge text-xs ${isClosed ? 'badge-gray' : 'badge-blue'}`}>
-                                {isClosed ? 'Cerrado' : 'Activo'}
-                            </span>
-                        </div>
-                        {viaje.descripcion && (
-                            <p className="text-sm text-stone-500 dark:text-slate-400 mt-1">{viaje.descripcion}</p>
-                        )}
-                        <p className="text-xs text-stone-400 dark:text-slate-500 mt-1">
-                            Inicio: {fmtDate(viaje.fecha_inicio)}
-                            {viaje.fecha_fin && ` · Fin: ${fmtDate(viaje.fecha_fin)}`}
-                        </p>
-                    </div>
-
-                    {!isClosed && (
-                        <button
-                            onClick={handleCerrar}
-                            disabled={closing}
-                            className="shrink-0 text-xs font-medium text-stone-500 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg border border-stone-200 dark:border-slate-700 hover:border-red-200 transition-colors disabled:opacity-50"
-                        >
-                            {closing ? '...' : 'Cerrar viaje'}
-                        </button>
-                    )}
+                <div className="flex items-center gap-2.5 flex-wrap">
+                    <h1 className="text-lg font-semibold text-stone-900 dark:text-slate-100">{viaje.nombre}</h1>
+                    <span className={`badge text-xs ${isClosed ? 'badge-gray' : 'badge-blue'}`}>
+                        {isClosed ? 'Cerrado' : 'Activo'}
+                    </span>
                 </div>
+                {viaje.descripcion && (
+                    <p className="text-sm text-stone-500 dark:text-slate-400 mt-1">{viaje.descripcion}</p>
+                )}
+                <p className="text-xs text-stone-400 dark:text-slate-500 mt-1">
+                    Inicio: {fmtDate(viaje.fecha_inicio)}
+                    {viaje.fecha_fin && ` · Fin: ${fmtDate(viaje.fecha_fin)}`}
+                </p>
             </div>
 
-            {/* Tabs — underline style */}
-            <div className="flex border-b border-stone-200 dark:border-slate-700 gap-0">
-                {TABS.map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                            activeTab === tab.id
-                                ? 'border-foreground text-foreground'
-                                : 'border-transparent text-stone-500 dark:text-slate-400 hover:text-stone-800 dark:hover:text-slate-200 hover:border-stone-300'
-                        }`}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
+            {/* Stepper de fases + acceso a Resumen */}
+            <div className="flex items-center gap-0 border-b border-stone-200 dark:border-slate-700 overflow-x-auto">
+                {FASES.map((f, i) => {
+                    const reached = faseAlcanzada(f, viaje.fase);
+                    const active  = activeStep === f;
+                    return (
+                        <button
+                            key={f}
+                            disabled={!reached}
+                            onClick={() => reached && setActiveStep(f)}
+                            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                                active
+                                    ? 'border-foreground text-foreground'
+                                    : reached
+                                        ? 'border-transparent text-stone-500 dark:text-slate-400 hover:text-foreground'
+                                        : 'border-transparent text-stone-300 dark:text-slate-600 cursor-not-allowed'
+                            }`}
+                        >
+                            <span className={`w-5 h-5 rounded-full text-[0.7rem] flex items-center justify-center ${
+                                active ? 'bg-foreground text-background' : reached ? 'bg-muted text-foreground' : 'bg-muted text-stone-400 dark:text-slate-600'
+                            }`}>
+                                {i + 1}
+                            </span>
+                            {FASE_META[f].label}
+                        </button>
+                    );
+                })}
+                <div className="flex-1 min-w-2" />
+                <button
+                    onClick={() => setActiveStep('resumen')}
+                    className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                        activeStep === 'resumen'
+                            ? 'border-foreground text-foreground'
+                            : 'border-transparent text-stone-500 dark:text-slate-400 hover:text-foreground'
+                    }`}
+                >
+                    Resumen
+                </button>
             </div>
 
-            {/* Tab content */}
-            {activeTab === 'compras' && <ComprasTab viajeId={id} readOnly={isClosed} />}
-            {activeTab === 'ventas'  && <VentasTab  viajeId={id} readOnly={isClosed} />}
-            {activeTab === 'costos'  && <CostosTab  viajeId={id} readOnly={isClosed} />}
-            {activeTab === 'resumen' && <ResumenTab viajeId={id} />}
+            {/* Secciones según la fase activa */}
+            {activeStep === 'preparacion' && (
+                <div className="space-y-4">
+                    <ComprasTab viajeId={id} readOnly={isClosed} />
+                    <CostosTab  viajeId={id} readOnly={isClosed} />
+                </div>
+            )}
+            {activeStep === 'en_curso' && <CostosTab  viajeId={id} readOnly={isClosed} />}
+            {activeStep === 'ventas'   && <VentasTab  viajeId={id} readOnly={isClosed} />}
+            {activeStep === 'resumen'  && <ResumenTab viajeId={id} />}
+
+            {/* Acción de la fase punta (avanzar / cerrar) */}
+            {!isClosed && enPunta && cfg && (
+                <button onClick={handleAvanzar} disabled={advancing} className="btn-primary">
+                    {advancing ? 'Guardando...' : cfg.label}
+                </button>
+            )}
+            {!isClosed && enPunta && viaje.fase === 'ventas' && (
+                <button
+                    onClick={handleCerrar}
+                    disabled={closing}
+                    className="btn-primary"
+                >
+                    {closing ? 'Cerrando...' : 'Cerrar viaje'}
+                </button>
+            )}
         </div>
     );
 }
