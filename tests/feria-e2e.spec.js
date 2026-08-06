@@ -154,54 +154,64 @@ async function runDashboardTests(page) {
     await page.waitForURL(/\/dashboard\/viajes\/.+/);
     await expect(page.locator('h1')).toContainText(voyageName);
 
-    // Check Tabs are present
-    await expect(page.locator('button:has-text("Compras")')).toBeVisible();
-    await expect(page.locator('button:has-text("Ventas")')).toBeVisible();
-    await expect(page.locator('button:has-text("Costos")')).toBeVisible();
+    // Fase 1 — Preparación: se ven las secciones Compras y Costos; Ventas NO (gated).
+    await expect(page.locator('button:has-text("Preparación")')).toBeVisible();
+    await expect(page.locator('h2:has-text("Compras")')).toBeVisible();
+    await expect(page.locator('h2:has-text("Costos iniciales")')).toBeVisible();
     await expect(page.locator('button:has-text("Resumen")')).toBeVisible();
+    // El paso "Ventas" del stepper existe pero está deshabilitado en preparación.
+    await expect(page.locator('button:has-text("Ventas")[disabled]')).toBeVisible();
 
-    // 4. Compras (Purchases) CRUD
-    await page.click('button:has-text("Compras")');
+    // Compras (Purchases) CRUD — visibles en Preparación
     await page.click('button:has-text("Agregar")');
-
-    // Fill details (selecting 'Tomate E2E' from dropdown)
+    await expect(page.locator('select option:has-text("Tomate E2E")')).toBeAttached();
     await page.selectOption('select', { label: 'Tomate E2E' });
     await page.fill('input[placeholder="Cantidad"]', '10');
     await page.fill('input[placeholder="Precio por unidad ($)"]', '5');
     await page.click('button:has-text("Guardar compra")');
-
-    // Verify purchase row is present: 10 kg * $5.00 = $50.00
-    await expect(page.locator('text=Tomate E2E')).toBeVisible();
     await expect(page.locator('text=10 kg × $5,00 = $50,00')).toBeVisible();
 
-    // Edit purchase row
+    // Editar la compra (10 → 20, total $100.00)
     await page.hover('text=Tomate E2E');
     await page.click('button[title="Editar"]');
-    await page.fill('input[placeholder="Cantidad"]', '20'); // change qty to 20 (Total $100.00)
+    await page.fill('input[placeholder="Cantidad"]', '20');
     await page.click('button:has-text("Guardar cambios")');
     await expect(page.locator('text=20 kg × $5,00 = $100,00')).toBeVisible();
 
-    // 5. Ventas (Sales) CRUD
-    await page.click('button:has-text("Ventas")');
-    await page.click('button:has-text("Agregar")');
-    await page.selectOption('select', { label: 'Tomate E2E' });
-    await page.fill('input[placeholder="Cantidad"]', '15');
-    await page.fill('input[placeholder="Precio por unidad ($)"]', '8'); // 15 kg * $8.00 = $120.00
-    await page.click('button:has-text("Guardar venta")');
-
-    await expect(page.locator('text=Tomate E2E')).toBeVisible();
-    await expect(page.locator('text=15 kg × $8,00 = $120,00')).toBeVisible();
-
-    // 6. Costos (Costs) CRUD
-    await page.click('button:has-text("Costos")');
-    await page.click('button:has-text("Agregar")');
+    // Costos CRUD — también en Preparación (segunda tarjeta de la vista)
+    await page.locator('button:has-text("Agregar")').last().click();
     await page.selectOption('select', 'obreros');
     await page.fill('input[placeholder="Descripción"]', 'Pago cargadores');
     await page.fill('input[placeholder="Monto ($)"]', '10');
     await page.click('button:has-text("Guardar costo")');
-
     await expect(page.locator('text=Pago cargadores')).toBeVisible();
-    await expect(page.locator('text=obreros · $10,00')).toBeVisible();
+
+    // Avanzar: Preparación → En curso (diálogo de confirmación)
+    page.once('dialog', async dialog => {
+        expect(dialog.message()).toMatch(/listo para empezar/i);
+        await dialog.accept();
+    });
+    await page.click('button:has-text("Iniciar viaje")');
+    // Esperar a que la fase En curso termine de renderizar
+    await expect(page.locator('h2:has-text("Costos del viaje")')).toBeVisible();
+
+    // Avanzar: En curso → Ventas (diálogo de confirmación)
+    page.once('dialog', async dialog => {
+        expect(dialog.message()).toMatch(/registrar las ventas/i);
+        await dialog.accept();
+    });
+    await page.click('button:has-text("Registrar ventas")');
+
+    // Fase 3 — Ventas: esperar el render de la sección Ventas antes de operar
+    await expect(page.locator('h2:has-text("Ventas")')).toBeVisible();
+    await expect(page.locator('button:has-text("Agregar")')).toBeVisible();
+    await page.click('button:has-text("Agregar")');
+    await expect(page.locator('select option:has-text("Tomate E2E")')).toBeAttached();
+    await page.selectOption('select', { label: 'Tomate E2E' });
+    await page.fill('input[placeholder="Cantidad"]', '15');
+    await page.fill('input[placeholder="Precio por unidad ($)"]', '8');
+    await page.click('button:has-text("Guardar venta")');
+    await expect(page.locator('text=15 kg × $8,00 = $120,00')).toBeVisible();
 
     // 7. Resumen (Summary) Checking
     await page.click('button:has-text("Resumen")');
@@ -222,19 +232,18 @@ async function runDashboardTests(page) {
     await expect(page.locator('text=Tomate E2E >> xpath=.. >> text=15,00')).toBeVisible();
     await expect(page.locator('text=Tomate E2E >> xpath=.. >> text=5,00 kg')).toBeVisible();
 
-    // 8. Close voyage
-    // Intercept confirm dialog window
+    // 8. Cerrar viaje — el botón está en la fase Ventas
+    await page.locator('button:has-text("Ventas")').first().click(); // volver al paso Ventas del stepper
     page.once('dialog', async dialog => {
         expect(dialog.message()).toContain('¿Cerrar este viaje?');
         await dialog.accept();
     });
     await page.click('button:has-text("Cerrar viaje")');
 
-    // Once closed, check status badge is Gray and "Cerrado"
+    // Cerrado: badge gris "Cerrado"
     await expect(page.locator('span.badge:has-text("Cerrado")')).toBeVisible();
 
-    // Add button should no longer exist since voyage is closed (readOnly mode)
-    await page.click('button:has-text("Compras")');
+    // En modo readOnly ya no hay botón "Agregar" en las secciones
     await expect(page.locator('button:has-text("Agregar")')).not.toBeVisible();
 
     // 9. Go to Dashboard and verify Voyage is listed as closed
