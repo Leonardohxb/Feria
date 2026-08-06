@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS public.viajes (
   fecha_inicio DATE  NOT NULL DEFAULT CURRENT_DATE,
   fecha_fin    DATE,
   estado       TEXT  NOT NULL DEFAULT 'activo' CHECK (estado IN ('activo', 'cerrado')),
+  fase         TEXT  NOT NULL DEFAULT 'preparacion' CHECK (fase IN ('preparacion', 'en_curso', 'ventas')),
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
