@@ -599,6 +599,16 @@ function Row({ label, value, color, bold }) {
     );
 }
 
+/* ── Sección con título (fases apiladas) ─────────────────── */
+function Seccion({ titulo, children }) {
+    return (
+        <section>
+            <h2 className="text-sm font-semibold text-stone-500 dark:text-slate-400 uppercase tracking-wider mb-2">{titulo}</h2>
+            {children}
+        </section>
+    );
+}
+
 /* ── Main Page ──────────────────────────────────────────── */
 export default function ViajeDetallePage() {
     const { id }  = useParams();
@@ -731,13 +741,17 @@ export default function ViajeDetallePage() {
 
             {/* Secciones según la fase activa */}
             {activeStep === 'preparacion' && (
-                <div className="space-y-4">
-                    <ComprasTab viajeId={id} readOnly={isClosed} />
-                    <CostosTab  viajeId={id} readOnly={isClosed} />
+                <div className="space-y-5">
+                    <Seccion titulo="Compras"><ComprasTab viajeId={id} readOnly={isClosed} /></Seccion>
+                    <Seccion titulo="Costos iniciales"><CostosTab viajeId={id} readOnly={isClosed} /></Seccion>
                 </div>
             )}
-            {activeStep === 'en_curso' && <CostosTab  viajeId={id} readOnly={isClosed} />}
-            {activeStep === 'ventas'   && <VentasTab  viajeId={id} readOnly={isClosed} />}
+            {activeStep === 'en_curso' && (
+                <Seccion titulo="Costos del viaje"><CostosTab viajeId={id} readOnly={isClosed} /></Seccion>
+            )}
+            {activeStep === 'ventas' && (
+                <Seccion titulo="Ventas"><VentasTab viajeId={id} readOnly={isClosed} /></Seccion>
+            )}
             {activeStep === 'resumen'  && <ResumenTab viajeId={id} />}
 
             {/* Acción de la fase punta (avanzar / cerrar) */}
