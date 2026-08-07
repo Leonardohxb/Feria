@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, X, Pencil, ClipboardList, HardHat, Utensils, BedDouble, Fuel, Droplet, Truck, Tag } from 'lucide-react';
 import { FASES, FASE_META, faseIndex, avanceConfig } from '@/lib/viajeFases.mjs';
@@ -157,10 +157,13 @@ function useMaterialesViaje(viajeId, tasaTraslado) {
         });
         const tasa = Number(tasaTraslado) || 0;
         const lista = [...map.values()].map(m => {
-            const costoTotal = m.costoCompras + (m.unidad === 'kg' ? m.cantidad * tasa : 0);
+            const traslado = m.unidad === 'kg' ? m.cantidad * tasa : 0;
+            const costoTotal = m.costoCompras + traslado;
             return {
                 ...m,
                 costoEstimado: costoTotal,
+                costoCompras: m.costoCompras,
+                traslado,
                 label: `${m.nombre} (${Number(m.cantidad)} ${m.unidad})`,
             };
         }).sort((a, b) => a.nombre.localeCompare(b.nombre));
@@ -331,6 +334,18 @@ function ComprasTab({ viajeId, readOnly, titulo, divisasVersion, tasaTraslado, o
 
     // Sincroniza el input de tasa con el valor que viene del viaje (prop).
     useEffect(() => { setTasa(tasaTraslado != null ? String(tasaTraslado) : ''); }, [tasaTraslado]);
+
+    // Ref para guardar la tasa al desmontar ComprasTab (por si se navegó sin blur).
+    const tasaRef = useRef('');
+    tasaRef.current = tasa;
+    useEffect(() => {
+        return () => {
+            const valor = Number(tasaRef.current);
+            const nuevo = (!isNaN(valor) && valor > 0) ? valor : null;
+            supabase.from('viajes').update({ traslado_tasa_por_kg: nuevo }).eq('id', viajeId).then(() => onTasaChange?.(nuevo));
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const load = useCallback(async () => {
         const [cR, dR] = await Promise.all([
@@ -546,7 +561,15 @@ function VentasTab({ viajeId, readOnly, titulo, tasaTraslado }) {
                                 Cantidad: <span className="font-medium tabular">{Number(materialSel.cantidad)} {materialSel.unidad}</span>
                             </p>
                             <p className="text-stone-500 dark:text-slate-400">
-                                Total estimado (costo): <span className="font-medium tabular text-stone-700 dark:text-slate-200">${fmt(materialSel.costoEstimado)}</span>
+                                Costo de compras: <span className="font-medium tabular text-stone-700 dark:text-slate-200">${fmt(materialSel.costoCompras)}</span>
+                            </p>
+                            {Number(tasaTraslado) > 0 && materialSel.unidad === 'kg' && (
+                                <p className="text-stone-500 dark:text-slate-400">
+                                    Traslado (${fmt(tasaTraslado)}/kg): <span className="font-medium tabular text-stone-700 dark:text-slate-200">${fmt(materialSel.traslado)}</span>
+                                </p>
+                            )}
+                            <p className="text-stone-700 dark:text-slate-200 font-medium pt-0.5">
+                                Total estimado (costo): <span className="tabular">${fmt(materialSel.costoEstimado)}</span>
                             </p>
                         </div>
                     )}
