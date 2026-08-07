@@ -731,8 +731,10 @@ function DivisasPanel({ viajeId, readOnly, onChange }) {
                                             )}
                                         </div>
                                         {!readOnly && !d.es_base && (
-                                            <div className="flex items-center shrink-0">
-                                                <EditBtn onClick={() => startEdit(d)} />
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                <button onClick={() => startEdit(d)} className="text-xs font-medium px-2.5 py-1 rounded-md border border-foreground/30 text-foreground hover:bg-muted transition-colors">
+                                                    Poner cambio
+                                                </button>
                                                 {!d.fija && <DeleteBtn onClick={() => del(d)} />}
                                             </div>
                                         )}
