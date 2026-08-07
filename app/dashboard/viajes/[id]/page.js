@@ -1,15 +1,15 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, X, Pencil, ClipboardList, HardHat, Utensils, BedDouble, Fuel, Droplet, Truck, Tag } from 'lucide-react';
+import { ArrowLeft, X, Pencil, ClipboardList, HardHat, Utensils, BedDouble, Fuel, Droplet, Truck, Package, Tag } from 'lucide-react';
 import { FASES, FASE_META, faseIndex, avanceConfig } from '@/lib/viajeFases.mjs';
 import { montoUsd } from '@/lib/divisas.mjs';
 import supabase from '@/lib/supabaseClient';
 import { useAuth } from '@/context/AuthContext';
 
 const UNIDADES    = ['kg', 'caja', 'unidad', 'saco', 'paca', 'otro'];
-const TIPOS_COSTO = ['administracion', 'obreros', 'comida', 'hotel', 'gasolina', 'gasoil', 'transporte', 'otro'];
-const TIPO_ICON   = { administracion: ClipboardList, obreros: HardHat, comida: Utensils, hotel: BedDouble, gasolina: Fuel, gasoil: Droplet, transporte: Truck, otro: Tag };
+const TIPOS_COSTO = ['administracion', 'obreros', 'comida', 'hotel', 'gasolina', 'gasoil', 'transporte', 'traslado', 'otro'];
+const TIPO_ICON   = { administracion: ClipboardList, obreros: HardHat, comida: Utensils, hotel: BedDouble, gasolina: Fuel, gasoil: Droplet, transporte: Truck, traslado: Package, otro: Tag };
 const TIPO_LABEL  = t => t.charAt(0).toUpperCase() + t.slice(1);
 
 function fmt(n) {
@@ -275,17 +275,22 @@ function ComprasTab({ viajeId, readOnly, titulo, divisasVersion }) {
     const [showForm, setShowForm] = useState(false);
     const [saving,   setSaving]   = useState(false);
     const [editId,   setEditId]   = useState(null);
+    const [traslado, setTraslado] = useState({ id: null, valor: '' });
     const EMPTY = { producto: '', cantidad: '', unidad: 'kg', precio_unitario: '', divisa_id: '', fecha: today(), notas: '' };
     const [form, setForm] = useState(EMPTY);
     const { productos, reload: reloadProductos, userId } = useProductos();
 
     const load = useCallback(async () => {
-        const [cR, dR] = await Promise.all([
+        const [cR, dR, tR] = await Promise.all([
             supabase.from('compras').select('*, viaje_divisas(codigo,tasa,es_base)').eq('viaje_id', viajeId).order('fecha', { ascending: false }),
             supabase.from('viaje_divisas').select('*').eq('viaje_id', viajeId).order('es_base', { ascending: false }).order('codigo'),
+            supabase.from('costos_adicionales').select('id,monto')
+                .eq('viaje_id', viajeId).eq('tipo', 'traslado').eq('descripcion', 'Traslado de compras')
+                .maybeSingle(),
         ]);
         setItems(cR.data ?? []);
         setDivisas(dR.data ?? []);
+        setTraslado(tR.data ? { id: tR.data.id, valor: String(tR.data.monto) } : { id: null, valor: '' });
         setLoading(false);
     }, [viajeId]);
 
@@ -322,11 +327,46 @@ function ComprasTab({ viajeId, readOnly, titulo, divisasVersion }) {
 
     async function del(id) { await supabase.from('compras').delete().eq('id', id); load(); }
 
-    const total = items.reduce((s, i) => s + montoUsd(i.cantidad, i.precio_unitario, i.viaje_divisas?.tasa ?? 1), 0);
+    // Costo de traslado: atajo que crea/actualiza/borra un costo_adicional tipo 'traslado'.
+    async function saveTraslado() {
+        const montoNum = Number(traslado.valor);
+        if (!montoNum || montoNum <= 0) {
+            if (traslado.id) {
+                await supabase.from('costos_adicionales').delete().eq('id', traslado.id);
+                setTraslado({ id: null, valor: '' });
+            }
+            return;
+        }
+        if (traslado.id) {
+            await supabase.from('costos_adicionales').update({ monto: montoNum }).eq('id', traslado.id);
+        } else {
+            const { data } = await supabase.from('costos_adicionales').insert({
+                viaje_id: viajeId, tipo: 'traslado', descripcion: 'Traslado de compras',
+                monto: montoNum, divisa_id: baseDivisa?.id ?? null, fecha: today(),
+            }).select().single();
+            if (data) setTraslado(t => ({ ...t, id: data.id }));
+        }
+    }
+
+    const total = items.reduce((s, i) => s + montoUsd(i.cantidad, i.precio_unitario, i.viaje_divisas?.tasa ?? 1), 0)
+        + (Number(traslado.valor) || 0);
 
     return (
         <div className="space-y-2.5">
             <SectionHeader titulo={titulo} count={items.length} total={total} color="text-foreground">
+                {!readOnly && (
+                    <label className="flex items-center gap-1.5 text-xs text-stone-500 dark:text-slate-400" title="Costo traslado (USD)">
+                        <Package className="w-3.5 h-3.5" />
+                        <input
+                            type="number" step="0.01" min="0" placeholder="0"
+                            value={traslado.valor}
+                            onChange={e => setTraslado(t => ({ ...t, valor: e.target.value }))}
+                            onBlur={saveTraslado}
+                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+                            className="input-base w-20 py-1 text-sm"
+                        />
+                    </label>
+                )}
                 {!readOnly && <AddButton onClick={() => showForm ? resetForm() : openForm()} open={showForm} />}
             </SectionHeader>
 
