@@ -123,6 +123,30 @@ function useProductos() {
     return { productos, reload: load, userId: user?.id };
 }
 
+/* ── Materiales comprados en el viaje (para Ventas) ────────
+   Carga los productos distinct de las compras del viaje, para
+   que al vender se parta de lo que ya se compró. */
+function useMaterialesViaje(viajeId) {
+    const { user } = useAuth();
+    const [materiales, setMateriales] = useState([]);
+
+    const load = useCallback(async () => {
+        if (!user) return;
+        const { data } = await supabase.from('compras')
+            .select('producto')
+            .eq('viaje_id', viajeId);
+        const map = new Map();
+        (data ?? []).forEach(c => {
+            if (c.producto && !map.has(c.producto)) map.set(c.producto, { nombre: c.producto, activo: true });
+        });
+        setMateriales([...map.values()].sort((a, b) => a.nombre.localeCompare(b.nombre)));
+    }, [user, viajeId]);
+
+    useEffect(() => { load(); }, [load]);
+
+    return { materiales, reload: load, userId: user?.id };
+}
+
 /* ── Select de producto, con opción de crear uno nuevo ────── */
 function ProductoField({ value, onChange, productos, onCreated, userId }) {
     const [creating, setCreating] = useState(false);
@@ -426,7 +450,7 @@ function VentasTab({ viajeId, readOnly, titulo }) {
     const [editId,   setEditId]   = useState(null);
     const EMPTY = { producto: '', cantidad: '', unidad: 'kg', precio_unitario: '', fecha: today(), notas: '' };
     const [form, setForm] = useState(EMPTY);
-    const { productos, reload: reloadProductos, userId } = useProductos();
+    const { materiales, reload: reloadMateriales, userId } = useMaterialesViaje(viajeId);
 
     const load = useCallback(async () => {
         const { data } = await supabase.from('ventas').select('*').eq('viaje_id', viajeId).order('fecha', { ascending: false });
@@ -475,8 +499,8 @@ function VentasTab({ viajeId, readOnly, titulo }) {
                     <ProductoField
                         value={form.producto}
                         onChange={v => setForm(f => ({ ...f, producto: v }))}
-                        productos={productos} userId={userId}
-                        onCreated={() => reloadProductos()}
+                        productos={materiales} userId={userId}
+                        onCreated={() => reloadMateriales()}
                     />
                     <input required type="number" step="0.01" min="0.01" placeholder="Cantidad" value={form.cantidad} onChange={sf('cantidad')} className="input-base" />
                     <select value={form.unidad} onChange={sf('unidad')} className="input-base">
