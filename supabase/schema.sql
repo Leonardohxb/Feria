@@ -208,6 +208,7 @@ CREATE TABLE IF NOT EXISTS public.costos_adicionales (
   tipo         TEXT           NOT NULL,
   descripcion  TEXT           NOT NULL,
   monto        NUMERIC(10, 2) NOT NULL CHECK (monto >= 0),
+  divisa_id    UUID           REFERENCES public.viaje_divisas(id) ON DELETE RESTRICT,
   fecha        DATE           NOT NULL DEFAULT CURRENT_DATE,
   created_at   TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );
@@ -215,7 +216,8 @@ CREATE TABLE IF NOT EXISTS public.costos_adicionales (
 CREATE INDEX IF NOT EXISTS idx_costos_viaje ON public.costos_adicionales(viaje_id);
 
 COMMENT ON TABLE  public.costos_adicionales  IS 'Gastos adicionales del viaje: administración, obreros, comida, hotel, gasolina, etc.';
-COMMENT ON COLUMN public.costos_adicionales.tipo IS 'Categoría: administracion, obreros, comida, hotel, gasolina, gasoil, transporte, otro.';
+COMMENT ON COLUMN public.costos_adicionales.tipo      IS 'Categoría: administracion, obreros, comida, hotel, gasolina, gasoil, transporte, otro, o custom.';
+COMMENT ON COLUMN public.costos_adicionales.divisa_id IS 'Divisa en la que está expresado monto (refiere a viaje_divisas).';
 
 
 -- ============================================================

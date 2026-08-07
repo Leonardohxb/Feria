@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { Truck } from 'lucide-react';
 import supabase from '@/lib/supabaseClient';
 import { useAuth } from '@/context/AuthContext';
+import { montoUsd } from '@/lib/divisas.mjs';
 
 function fmt(n) {
     return Number(n ?? 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -20,17 +21,18 @@ export default function DashboardPage() {
         async function load() {
             const [viajesR, comprasR, ventasR, costosR] = await Promise.all([
                 supabase.from('viajes').select('*').order('created_at', { ascending: false }),
-                supabase.from('compras').select('viaje_id,cantidad,precio_unitario'),
+                supabase.from('compras').select('viaje_id,cantidad,precio_unitario, viaje_divisas(tasa)'),
                 supabase.from('ventas').select('viaje_id,cantidad,precio_unitario'),
-                supabase.from('costos_adicionales').select('viaje_id,monto'),
+                supabase.from('costos_adicionales').select('viaje_id,monto, viaje_divisas(tasa)'),
             ]);
 
-            // Agregación por viaje (respeta RLS: solo llegan filas del dueño)
+            // Agregación por viaje (respeta RLS: solo llegan filas del dueño).
+            // Compras y costos se convierten a USD con la tasa de su divisa.
             const acc = {};
             const ensure = id => (acc[id] ??= { compras: 0, ventas: 0, costos: 0 });
-            (comprasR.data ?? []).forEach(c => { ensure(c.viaje_id).compras += Number(c.cantidad) * Number(c.precio_unitario); });
+            (comprasR.data ?? []).forEach(c => { ensure(c.viaje_id).compras += montoUsd(c.cantidad, c.precio_unitario, c.viaje_divisas?.tasa ?? 1); });
             (ventasR.data  ?? []).forEach(v => { ensure(v.viaje_id).ventas  += Number(v.cantidad) * Number(v.precio_unitario); });
-            (costosR.data  ?? []).forEach(k => { ensure(k.viaje_id).costos  += Number(k.monto); });
+            (costosR.data  ?? []).forEach(k => { ensure(k.viaje_id).costos  += montoUsd(1, k.monto, k.viaje_divisas?.tasa ?? 1); });
 
             const conTotales = (viajesR.data ?? []).map(v => {
                 const t = acc[v.id] ?? { compras: 0, ventas: 0, costos: 0 };
