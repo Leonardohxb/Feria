@@ -148,7 +148,7 @@ function useMaterialesViaje(viajeId) {
 }
 
 /* ── Select de producto, con opción de crear uno nuevo ────── */
-function ProductoField({ value, onChange, productos, onCreated, userId }) {
+function ProductoField({ value, onChange, productos, onCreated, userId, permitirCrear = true }) {
     const [creating, setCreating] = useState(false);
     const [newName,  setNewName]  = useState('');
     const [error,    setError]    = useState('');
@@ -193,8 +193,8 @@ function ProductoField({ value, onChange, productos, onCreated, userId }) {
             className="input-base col-span-2"
         >
             <option value="" disabled>Selecciona un producto...</option>
-            {productos.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
-            <option value="__nuevo__">+ Crear nuevo item...</option>
+            {productos.map(p => <option key={p.id ?? p.nombre} value={p.nombre}>{p.nombre}</option>)}
+            {permitirCrear && <option value="__nuevo__">+ Crear nuevo item...</option>}
         </select>
     );
 }
@@ -501,6 +501,7 @@ function VentasTab({ viajeId, readOnly, titulo }) {
                         onChange={v => setForm(f => ({ ...f, producto: v }))}
                         productos={materiales} userId={userId}
                         onCreated={() => reloadMateriales()}
+                        permitirCrear={false}
                     />
                     <input required type="number" step="0.01" min="0.01" placeholder="Cantidad" value={form.cantidad} onChange={sf('cantidad')} className="input-base" />
                     <select value={form.unidad} onChange={sf('unidad')} className="input-base">
