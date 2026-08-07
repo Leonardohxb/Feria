@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, X, Pencil, ClipboardList, HardHat, Utensils, BedDouble, Fuel, Droplet, Truck, Tag } from 'lucide-react';
-import { FASES, FASE_META, faseAlcanzada, avanceConfig } from '@/lib/viajeFases.mjs';
+import { FASES, FASE_META, faseIndex, avanceConfig } from '@/lib/viajeFases.mjs';
 import supabase from '@/lib/supabaseClient';
 import { useAuth } from '@/context/AuthContext';
 
@@ -715,19 +715,15 @@ function DivisasPanel({ viajeId, readOnly, onChange }) {
 export default function ViajeDetallePage() {
     const { id }  = useParams();
     const router  = useRouter();
-    const [viaje,      setViaje]      = useState(null);
-    const [loading,    setLoading]    = useState(true);
-    const [activeStep, setActiveStep] = useState('preparacion');
-    const [advancing,  setAdvancing]  = useState(false);
-    const [closing,    setClosing]    = useState(false);
+    const [viaje,     setViaje]     = useState(null);
+    const [loading,   setLoading]   = useState(true);
+    const [advancing, setAdvancing] = useState(false);
+    const [closing,   setClosing]   = useState(false);
+    const [divisasVersion, setDivisasVersion] = useState(0);
 
     useEffect(() => {
         supabase.from('viajes').select('*').eq('id', id).single()
-            .then(({ data }) => {
-                setViaje(data);
-                setActiveStep(data?.fase ?? 'preparacion');
-                setLoading(false);
-            });
+            .then(({ data }) => { setViaje(data); setLoading(false); });
     }, [id]);
 
     async function handleAvanzar() {
@@ -737,7 +733,6 @@ export default function ViajeDetallePage() {
         setAdvancing(true);
         await supabase.from('viajes').update({ fase: cfg.next }).eq('id', id);
         setViaje(v => ({ ...v, fase: cfg.next }));
-        setActiveStep(cfg.next);
         setAdvancing(false);
     }
 
@@ -748,7 +743,6 @@ export default function ViajeDetallePage() {
         await supabase.from('viajes').update({ estado: 'cerrado', fecha_fin }).eq('id', id);
         setViaje(v => ({ ...v, estado: 'cerrado', fecha_fin }));
         setClosing(false);
-        setActiveStep('resumen');
     }
 
     if (loading) {
@@ -771,8 +765,9 @@ export default function ViajeDetallePage() {
     }
 
     const isClosed = viaje.estado === 'cerrado';
+    const vista    = isClosed ? 'resumen' : viaje.fase;
     const cfg      = avanceConfig(viaje.fase);
-    const enPunta  = activeStep === viaje.fase;
+    const pasoNum  = faseIndex(viaje.fase) + 1;
 
     return (
         <div className="animate-fade-in space-y-5">
@@ -801,69 +796,35 @@ export default function ViajeDetallePage() {
                 </p>
             </div>
 
-            {/* Stepper de fases + acceso a Resumen */}
-            <div className="flex items-center gap-0 border-b border-stone-200 dark:border-slate-700 overflow-x-auto">
-                {FASES.map((f, i) => {
-                    const reached = faseAlcanzada(f, viaje.fase);
-                    const active  = activeStep === f;
-                    return (
-                        <button
-                            key={f}
-                            disabled={!reached}
-                            onClick={() => reached && setActiveStep(f)}
-                            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                                active
-                                    ? 'border-foreground text-foreground'
-                                    : reached
-                                        ? 'border-transparent text-stone-500 dark:text-slate-400 hover:text-foreground'
-                                        : 'border-transparent text-stone-300 dark:text-slate-600 cursor-not-allowed'
-                            }`}
-                        >
-                            <span className={`w-5 h-5 rounded-full text-[0.7rem] flex items-center justify-center ${
-                                active ? 'bg-foreground text-background' : reached ? 'bg-muted text-foreground' : 'bg-muted text-stone-400 dark:text-slate-600'
-                            }`}>
-                                {i + 1}
-                            </span>
-                            {FASE_META[f].label}
-                        </button>
-                    );
-                })}
-                <div className="flex-1 min-w-2" />
-                <button
-                    onClick={() => setActiveStep('resumen')}
-                    className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                        activeStep === 'resumen'
-                            ? 'border-foreground text-foreground'
-                            : 'border-transparent text-stone-500 dark:text-slate-400 hover:text-foreground'
-                    }`}
-                >
-                    Resumen
-                </button>
-            </div>
+            {/* Indicador de fase (una a la vez) */}
+            {!isClosed && (
+                <div className="flex items-center gap-2 text-sm border-b border-stone-200 dark:border-slate-700 pb-3">
+                    <span className="w-6 h-6 rounded-full bg-foreground text-background text-xs flex items-center justify-center shrink-0">{pasoNum}</span>
+                    <span className="font-medium text-foreground">{FASE_META[viaje.fase].label}</span>
+                    <span className="text-xs text-stone-400 dark:text-slate-500">Paso {pasoNum} de {FASES.length}</span>
+                </div>
+            )}
 
-            {/* Secciones según la fase activa */}
-            {activeStep === 'preparacion' && (
+            {/* Contenido de la fase actual */}
+            {vista === 'preparacion' && (
                 <div className="space-y-6">
-                    <ComprasTab viajeId={id} readOnly={isClosed} titulo="Compras" />
+                    <DivisasPanel viajeId={id} readOnly={isClosed} onChange={() => setDivisasVersion(v => v + 1)} />
+                    <ComprasTab viajeId={id} readOnly={isClosed} titulo="Compras" divisasVersion={divisasVersion} />
                     <CostosTab  viajeId={id} readOnly={isClosed} titulo="Costos iniciales" />
                 </div>
             )}
-            {activeStep === 'en_curso' && <CostosTab viajeId={id} readOnly={isClosed} titulo="Costos del viaje" />}
-            {activeStep === 'ventas'   && <VentasTab viajeId={id} readOnly={isClosed} titulo="Ventas" />}
-            {activeStep === 'resumen'  && <ResumenTab viajeId={id} />}
+            {vista === 'en_curso' && <CostosTab viajeId={id} readOnly={isClosed} titulo="Costos del viaje" />}
+            {vista === 'ventas'   && <VentasTab viajeId={id} readOnly={isClosed} titulo="Ventas" />}
+            {vista === 'resumen'  && <ResumenTab viajeId={id} />}
 
-            {/* Acción de la fase punta (avanzar / cerrar) */}
-            {!isClosed && enPunta && cfg && (
+            {/* Acción de avance / cierre */}
+            {!isClosed && cfg && (
                 <button onClick={handleAvanzar} disabled={advancing} className="btn-primary">
                     {advancing ? 'Guardando...' : cfg.label}
                 </button>
             )}
-            {!isClosed && enPunta && viaje.fase === 'ventas' && (
-                <button
-                    onClick={handleCerrar}
-                    disabled={closing}
-                    className="btn-primary"
-                >
+            {!isClosed && viaje.fase === 'ventas' && (
+                <button onClick={handleCerrar} disabled={closing} className="btn-primary">
                     {closing ? 'Cerrando...' : 'Cerrar viaje'}
                 </button>
             )}
