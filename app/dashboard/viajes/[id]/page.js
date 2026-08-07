@@ -124,8 +124,9 @@ function useProductos() {
 }
 
 /* ── Materiales comprados en el viaje (para Ventas) ────────
-   Carga los productos distinct de las compras del viaje, para
-   que al vender se parta de lo que ya se compró. */
+   Carga los productos de las compras del viaje (agregados por
+   nombre, con cantidad y unidad) para que al vender se parta
+   de lo que ya se compró y se autocompleten los campos. */
 function useMaterialesViaje(viajeId) {
     const { user } = useAuth();
     const [materiales, setMateriales] = useState([]);
@@ -133,13 +134,23 @@ function useMaterialesViaje(viajeId) {
     const load = useCallback(async () => {
         if (!user) return;
         const { data } = await supabase.from('compras')
-            .select('producto')
+            .select('producto,unidad,cantidad')
             .eq('viaje_id', viajeId);
         const map = new Map();
         (data ?? []).forEach(c => {
-            if (c.producto && !map.has(c.producto)) map.set(c.producto, { nombre: c.producto, activo: true });
+            if (!c.producto) return;
+            const existing = map.get(c.producto);
+            if (existing) {
+                if (existing.unidad === c.unidad) existing.cantidad += Number(c.cantidad);
+            } else {
+                map.set(c.producto, { nombre: c.producto, unidad: c.unidad, cantidad: Number(c.cantidad), activo: true });
+            }
         });
-        setMateriales([...map.values()].sort((a, b) => a.nombre.localeCompare(b.nombre)));
+        const lista = [...map.values()].map(m => ({
+            ...m,
+            label: `${m.nombre} (${m.cantidad} ${m.unidad})`,
+        })).sort((a, b) => a.nombre.localeCompare(b.nombre));
+        setMateriales(lista);
     }, [user, viajeId]);
 
     useEffect(() => { load(); }, [load]);
@@ -193,7 +204,7 @@ function ProductoField({ value, onChange, productos, onCreated, userId, permitir
             className="input-base col-span-2"
         >
             <option value="" disabled>Selecciona un producto...</option>
-            {productos.map(p => <option key={p.id ?? p.nombre} value={p.nombre}>{p.nombre}</option>)}
+            {productos.map(p => <option key={p.id ?? p.nombre} value={p.nombre}>{p.label ?? p.nombre}</option>)}
             {permitirCrear && <option value="__nuevo__">+ Crear nuevo item...</option>}
         </select>
     );
@@ -498,7 +509,15 @@ function VentasTab({ viajeId, readOnly, titulo }) {
                 <InlineForm onSubmit={handleSubmit} saving={saving} label={editId ? 'Guardar cambios' : 'Guardar venta'}>
                     <ProductoField
                         value={form.producto}
-                        onChange={v => setForm(f => ({ ...f, producto: v }))}
+                        onChange={v => {
+                            const mat = materiales.find(m => m.nombre === v);
+                            setForm(f => ({
+                                ...f,
+                                producto: v,
+                                cantidad: mat ? String(mat.cantidad) : f.cantidad,
+                                unidad:   mat ? mat.unidad          : f.unidad,
+                            }));
+                        }}
                         productos={materiales} userId={userId}
                         onCreated={() => reloadMateriales()}
                         permitirCrear={false}
