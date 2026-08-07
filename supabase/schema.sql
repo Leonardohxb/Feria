@@ -67,6 +67,48 @@ COMMENT ON COLUMN public.viajes.estado IS 'activo: en curso. cerrado: finalizado
 
 
 -- ============================================================
+-- 3b. TABLA: viaje_divisas
+--     Divisas propias de cada viaje (USD base + Bs por defecto).
+--     Sembrada automáticamente por el trigger seed_viaje_divisas.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS public.viaje_divisas (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  viaje_id   UUID NOT NULL REFERENCES public.viajes(id) ON DELETE CASCADE,
+  codigo     TEXT NOT NULL,
+  tasa       NUMERIC(14,4) NOT NULL DEFAULT 1 CHECK (tasa > 0),
+  es_base    BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (viaje_id, codigo)
+);
+
+CREATE INDEX IF NOT EXISTS idx_viaje_divisas_viaje ON public.viaje_divisas(viaje_id);
+
+COMMENT ON TABLE  public.viaje_divisas       IS 'Divisas propias de cada viaje (USD base + Bs por defecto).';
+COMMENT ON COLUMN public.viaje_divisas.tasa  IS 'Unidades de la divisa por 1 USD (USD = 1).';
+
+-- Trigger: sembrar USD + Bs al crear un viaje
+CREATE OR REPLACE FUNCTION public.seed_viaje_divisas()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.viaje_divisas (viaje_id, codigo, tasa, es_base)
+  VALUES (NEW.id, 'USD', 1, TRUE),
+         (NEW.id, 'Bs',  1, FALSE);
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_viaje_created_seed_divisas ON public.viajes;
+CREATE TRIGGER on_viaje_created_seed_divisas
+  AFTER INSERT ON public.viajes
+  FOR EACH ROW EXECUTE FUNCTION public.seed_viaje_divisas();
+
+
+-- ============================================================
 -- 4. TABLA: productos
 --    Catálogo de hortalizas del dueño, reutilizable entre viajes.
 -- ============================================================
@@ -97,6 +139,7 @@ CREATE TABLE IF NOT EXISTS public.compras (
   cantidad         NUMERIC(10, 2) NOT NULL CHECK (cantidad > 0),
   unidad           TEXT           NOT NULL DEFAULT 'kg',
   precio_unitario  NUMERIC(10, 2) NOT NULL CHECK (precio_unitario >= 0),
+  divisa_id        UUID           REFERENCES public.viaje_divisas(id) ON DELETE RESTRICT,
   fecha            DATE           NOT NULL DEFAULT CURRENT_DATE,
   notas            TEXT,
   created_at       TIMESTAMPTZ    NOT NULL DEFAULT NOW()
@@ -105,7 +148,8 @@ CREATE TABLE IF NOT EXISTS public.compras (
 CREATE INDEX IF NOT EXISTS idx_compras_viaje ON public.compras(viaje_id);
 
 COMMENT ON TABLE  public.compras                  IS 'Compras de hortalizas realizadas en el viaje.';
-COMMENT ON COLUMN public.compras.precio_unitario  IS 'Precio pagado por unidad de medida en USD.';
+COMMENT ON COLUMN public.compras.precio_unitario  IS 'Precio pagado por unidad de medida en la divisa elegida.';
+COMMENT ON COLUMN public.compras.divisa_id        IS 'Divisa en la que está expresado precio_unitario (refiere a viaje_divisas).';
 
 
 -- ============================================================
@@ -176,6 +220,18 @@ CREATE POLICY "viajes_own"
   ON public.viajes FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+-- viaje_divisas (acceso a través de ownership del viaje)
+ALTER TABLE public.viaje_divisas ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "viaje_divisas_own"
+  ON public.viaje_divisas FOR ALL
+  USING (
+    EXISTS (SELECT 1 FROM public.viajes v WHERE v.id = viaje_id AND v.user_id = auth.uid())
+  )
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM public.viajes v WHERE v.id = viaje_id AND v.user_id = auth.uid())
+  );
 
 -- productos
 ALTER TABLE public.productos ENABLE ROW LEVEL SECURITY;
