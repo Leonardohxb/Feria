@@ -206,7 +206,7 @@ CREATE TABLE IF NOT EXISTS public.costos_adicionales (
   id           UUID           PRIMARY KEY DEFAULT gen_random_uuid(),
   viaje_id     UUID           NOT NULL REFERENCES public.viajes(id) ON DELETE CASCADE,
   tipo         TEXT           NOT NULL,
-  descripcion  TEXT           NOT NULL,
+  descripcion  TEXT,
   monto        NUMERIC(10, 2) NOT NULL CHECK (monto >= 0),
   divisa_id    UUID           REFERENCES public.viaje_divisas(id) ON DELETE RESTRICT,
   fecha        DATE           NOT NULL DEFAULT CURRENT_DATE,

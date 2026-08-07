@@ -508,7 +508,7 @@ function CostosTab({ viajeId, readOnly, titulo, divisasVersion }) {
         setSaving(true);
         const payload = {
             viaje_id: viajeId, tipo: form.tipo,
-            descripcion: form.descripcion, monto: Number(form.monto),
+            descripcion: form.descripcion || null, monto: Number(form.monto),
             divisa_id: form.divisa_id || baseDivisa?.id || null,
             fecha: form.fecha,
         };
@@ -538,11 +538,11 @@ function CostosTab({ viajeId, readOnly, titulo, divisasVersion }) {
                         onCreated={() => reloadTipos()}
                     />
                     <input type="date" value={form.fecha} onChange={sf('fecha')} className="input-base" />
-                    <input required placeholder="Descripción" value={form.descripcion} onChange={sf('descripcion')} className="input-base col-span-2" />
                     <input required type="number" step="0.01" min="0" placeholder={`Monto (${divisaSel?.codigo ?? 'USD'})`} value={form.monto} onChange={sf('monto')} className="input-base" />
                     <select value={form.divisa_id || baseDivisa?.id || ''} onChange={sf('divisa_id')} className="input-base">
                         {divisas.map(d => <option key={d.id} value={d.id}>{d.codigo}</option>)}
                     </select>
+                    <input placeholder="Descripción (opcional)" value={form.descripcion} onChange={sf('descripcion')} className="input-base col-span-2" />
                 </InlineForm>
             )}
 
@@ -557,7 +557,7 @@ function CostosTab({ viajeId, readOnly, titulo, divisasVersion }) {
                             : `${TIPO_LABEL(i.tipo)} · ${d.codigo} ${fmt(i.monto)} · ≈ $${fmt(montoUsd(1, i.monto, d.tasa))}`;
                         return (
                         <ItemRow key={i.id}
-                            title={<span className="inline-flex items-center gap-1.5"><Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" /> {i.descripcion}</span>}
+                            title={<span className="inline-flex items-center gap-1.5"><Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" /> {i.descripcion || TIPO_LABEL(i.tipo)}</span>}
                             line={line}
                             date={fmtDate(i.fecha)}
                             onEdit={!readOnly ? () => startEdit(i) : null}
