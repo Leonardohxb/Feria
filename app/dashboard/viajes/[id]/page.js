@@ -483,12 +483,12 @@ function ResumenTab({ viajeId }) {
     useEffect(() => {
         async function load() {
             const [cR, vR, kR] = await Promise.all([
-                supabase.from('compras').select('producto,cantidad,unidad,precio_unitario').eq('viaje_id', viajeId),
+                supabase.from('compras').select('producto,cantidad,unidad,precio_unitario, viaje_divisas(tasa)').eq('viaje_id', viajeId),
                 supabase.from('ventas').select('producto,cantidad,unidad,precio_unitario').eq('viaje_id', viajeId),
                 supabase.from('costos_adicionales').select('monto').eq('viaje_id', viajeId),
             ]);
             const compras = cR.data ?? [], ventas = vR.data ?? [];
-            const totalCompras = compras.reduce((s, i) => s + Number(i.cantidad) * Number(i.precio_unitario), 0);
+            const totalCompras = compras.reduce((s, i) => s + montoUsd(i.cantidad, i.precio_unitario, i.viaje_divisas?.tasa ?? 1), 0);
             const totalVentas  = ventas.reduce((s, i) => s + Number(i.cantidad) * Number(i.precio_unitario), 0);
             const totalCostos  = (kR.data ?? []).reduce((s, i) => s + Number(i.monto), 0);
 

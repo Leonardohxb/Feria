@@ -154,18 +154,18 @@ async function runDashboardTests(page) {
     await page.waitForURL(/\/dashboard\/viajes\/.+/);
     await expect(page.locator('h1')).toContainText(voyageName);
 
-    // Fase 1 — Preparación: se ven las secciones Compras y Costos; Ventas NO (gated).
-    await expect(page.locator('button:has-text("Preparación")')).toBeVisible();
+    // Fase 1 — Preparación (una fase a la vez): indicador de fase, sin stepper.
+    await expect(page.locator('text=Preparación')).toBeVisible();
+    await expect(page.locator('h2:has-text("Divisas del viaje")')).toBeVisible();
     await expect(page.locator('h2:has-text("Compras")')).toBeVisible();
     await expect(page.locator('h2:has-text("Costos iniciales")')).toBeVisible();
-    await expect(page.locator('button:has-text("Resumen")')).toBeVisible();
-    // El paso "Ventas" del stepper existe pero está deshabilitado en preparación.
-    await expect(page.locator('button:has-text("Ventas")[disabled]')).toBeVisible();
+    // Ventas no está visible en preparación (no hay sección ni paso Ventas todavía)
+    await expect(page.locator('h2:has-text("Ventas")')).toHaveCount(0);
 
     // Compras (Purchases) CRUD — visibles en Preparación
     await page.click('button:has-text("Agregar")');
     await expect(page.locator('select option:has-text("Tomate E2E")')).toBeAttached();
-    await page.selectOption('select', { label: 'Tomate E2E' });
+    await page.locator('select', { has: page.locator('option', { hasText: 'Tomate E2E' }) }).selectOption({ label: 'Tomate E2E' });
     await page.fill('input[placeholder="Cantidad"]', '10');
     await page.fill('input[placeholder="Precio por unidad ($)"]', '5');
     await page.click('button:has-text("Guardar compra")');
@@ -213,38 +213,25 @@ async function runDashboardTests(page) {
     await page.click('button:has-text("Guardar venta")');
     await expect(page.locator('text=15 kg × $8,00 = $120,00')).toBeVisible();
 
-    // 7. Resumen (Summary) Checking
-    await page.click('button:has-text("Resumen")');
-
-    // Let's check totals:
-    // Sales: $120.00
-    // Purchases: $100.00
-    // Costs: $10.00
-    // Net Profit: $120 - $100 - $10 = +$10.00
-    await expect(page.locator('div.stat-green >> p.stat-value')).toContainText('$120,00');
-    await expect(page.locator('div.stat-orange >> p.stat-value')).toContainText('$100,00');
-    await expect(page.locator('div.stat-amber >> p.stat-value')).toContainText('$10,00');
-    await expect(page.locator('text=Ganancia neta >> xpath=.. >> p.text-xl')).toContainText('+$10,00');
-
-    // Verify product balances
-    // Tomate E2E: bought 20, sold 15, remaining 5
-    await expect(page.locator('text=Tomate E2E >> xpath=.. >> text=20,00')).toBeVisible();
-    await expect(page.locator('text=Tomate E2E >> xpath=.. >> text=15,00')).toBeVisible();
-    await expect(page.locator('text=Tomate E2E >> xpath=.. >> text=5,00 kg')).toBeVisible();
-
-    // 8. Cerrar viaje — el botón está en la fase Ventas
-    await page.locator('button:has-text("Ventas")').first().click(); // volver al paso Ventas del stepper
+    // 7. Cerrar viaje — el botón está en la fase Ventas (sin stepper: el Resumen aparece solo al cerrar)
     page.once('dialog', async dialog => {
         expect(dialog.message()).toContain('¿Cerrar este viaje?');
         await dialog.accept();
     });
     await page.click('button:has-text("Cerrar viaje")');
 
-    // Cerrado: badge gris "Cerrado"
+    // Al cerrar, se muestra el Resumen automáticamente + badge "Cerrado"
     await expect(page.locator('span.badge:has-text("Cerrado")')).toBeVisible();
+    // Sales: $120.00 · Purchases: $100.00 · Costs: $10.00 · Net Profit: +$10.00
+    await expect(page.locator('div.stat-green >> p.stat-value')).toContainText('$120,00');
+    await expect(page.locator('div.stat-orange >> p.stat-value')).toContainText('$100,00');
+    await expect(page.locator('div.stat-amber >> p.stat-value')).toContainText('$10,00');
+    await expect(page.locator('text=Ganancia neta >> xpath=.. >> p.text-xl')).toContainText('+$10,00');
 
-    // En modo readOnly ya no hay botón "Agregar" en las secciones
-    await expect(page.locator('button:has-text("Agregar")')).not.toBeVisible();
+    // Verify product balances — Tomate E2E: bought 20, sold 15, remaining 5
+    await expect(page.locator('text=Tomate E2E >> xpath=.. >> text=20,00')).toBeVisible();
+    await expect(page.locator('text=Tomate E2E >> xpath=.. >> text=15,00')).toBeVisible();
+    await expect(page.locator('text=Tomate E2E >> xpath=.. >> text=5,00 kg')).toBeVisible();
 
     // 9. Go to Dashboard and verify Voyage is listed as closed
     await page.click('button:has-text("Mis viajes")');
