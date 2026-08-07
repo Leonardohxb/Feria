@@ -647,7 +647,7 @@ function DivisasPanel({ viajeId, readOnly, onChange }) {
         const codigo = nueva.codigo.trim();
         const tasa = Number(nueva.tasa);
         if (!codigo || !(tasa > 0)) return;
-        await supabase.from('viaje_divisas').insert({ viaje_id: viajeId, codigo, tasa, es_base: false });
+        await supabase.from('viaje_divisas').insert({ viaje_id: viajeId, codigo, tasa, es_base: false, fija: false });
         setNueva({ codigo: '', tasa: '' });
         setAdding(false);
         load();
@@ -657,17 +657,20 @@ function DivisasPanel({ viajeId, readOnly, onChange }) {
     function startEdit(d) { setEditId(d.id); setEditVal({ codigo: d.codigo, tasa: String(d.tasa) }); }
 
     async function saveEdit() {
-        const codigo = editVal.codigo.trim();
         const tasa = Number(editVal.tasa);
-        if (!codigo || !(tasa > 0)) return;
-        await supabase.from('viaje_divisas').update({ codigo, tasa }).eq('id', editId);
+        if (!(tasa > 0)) return;
+        const ed = divisas.find(x => x.id === editId);
+        const codigo = editVal.codigo.trim();
+        if (!ed?.fija && !codigo) return;
+        const update = ed?.fija ? { tasa } : { codigo, tasa };
+        await supabase.from('viaje_divisas').update(update).eq('id', editId);
         setEditId(null);
         load();
         onChange?.();
     }
 
     async function del(d) {
-        if (d.es_base) return;
+        if (d.fija) return;
         if (!confirm(`¿Borrar la divisa ${d.codigo}? Las compras en ${d.codigo} pasarán a USD con su valor convertido.`)) return;
         const base = divisas.find(x => x.es_base);
         const { data: compras } = await supabase.from('compras').select('id,precio_unitario').eq('divisa_id', d.id);
@@ -699,33 +702,45 @@ function DivisasPanel({ viajeId, readOnly, onChange }) {
 
             <div className="rounded-xl border border-border bg-muted p-2.5 space-y-2">
                 {loading ? <Spinner />
-                    : divisas.map(d => (
-                        <div key={d.id} className="card py-2.5 px-4 flex items-center gap-3">
-                            {editId === d.id ? (
-                                <>
-                                    <span className="text-xs text-stone-400 dark:text-slate-500 shrink-0">1 USD =</span>
-                                    <input type="number" step="0.0001" min="0" value={editVal.tasa} onChange={e => setEditVal(v => ({ ...v, tasa: e.target.value }))} className="input-base w-28" />
-                                    <input value={editVal.codigo} onChange={e => setEditVal(v => ({ ...v, codigo: e.target.value }))} className="input-base w-24" />
-                                    <div className="flex-1" />
-                                    <button onClick={saveEdit} className="btn-secondary text-sm px-3 shrink-0" style={{ width: 'auto' }}>Guardar</button>
-                                    <button onClick={() => setEditId(null)} className="text-stone-400 hover:text-stone-600 px-1 shrink-0 flex items-center"><X className="w-4 h-4" /></button>
-                                </>
-                            ) : (
-                                <>
-                                    <p className="text-sm font-medium text-stone-800 dark:text-slate-200 flex-1">
-                                        1 USD = <span className="tabular">{fmt(d.tasa)}</span> {d.codigo}
-                                        {d.es_base && <span className="text-xs text-stone-400 dark:text-slate-500 ml-2 font-normal">(base)</span>}
-                                    </p>
-                                    {!readOnly && !d.es_base && (
-                                        <div className="flex items-center shrink-0">
-                                            <EditBtn onClick={() => startEdit(d)} />
-                                            <DeleteBtn onClick={() => del(d)} />
+                    : divisas.map(d => {
+                        const pendiente = d.fija && !d.es_base && Number(d.tasa) === 1;
+                        const editando = editId === d.id;
+                        return (
+                            <div key={d.id} className={`card py-2.5 px-4 flex items-center gap-3 ${pendiente ? 'border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-950/20' : ''}`}>
+                                {editando ? (
+                                    <>
+                                        <span className="text-xs text-stone-400 dark:text-slate-500 shrink-0">1 USD =</span>
+                                        <input type="number" step="0.0001" min="0" value={editVal.tasa} onChange={e => setEditVal(v => ({ ...v, tasa: e.target.value }))} className="input-base w-28" />
+                                        {d.fija
+                                            ? <span className="text-sm text-stone-600 dark:text-slate-300 shrink-0 w-24">{d.codigo}</span>
+                                            : <input value={editVal.codigo} onChange={e => setEditVal(v => ({ ...v, codigo: e.target.value }))} className="input-base w-24" />}
+                                        <div className="flex-1" />
+                                        <button onClick={saveEdit} className="btn-secondary text-sm px-3 shrink-0" style={{ width: 'auto' }}>Guardar</button>
+                                        <button onClick={() => setEditId(null)} className="text-stone-400 hover:text-stone-600 px-1 shrink-0 flex items-center"><X className="w-4 h-4" /></button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-stone-800 dark:text-slate-200">
+                                                1 USD = <span className="tabular">{fmt(d.tasa)}</span> {d.codigo}
+                                                {d.es_base && <span className="text-xs text-stone-400 dark:text-slate-500 ml-2 font-normal">(base)</span>}
+                                                {d.fija && !d.es_base && <span className="text-xs text-stone-400 dark:text-slate-500 ml-2 font-normal">(fija)</span>}
+                                            </p>
+                                            {pendiente && (
+                                                <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">Configura la tasa del día</p>
+                                            )}
                                         </div>
-                                    )}
-                                </>
-                            )}
-                        </div>
-                    ))
+                                        {!readOnly && !d.es_base && (
+                                            <div className="flex items-center shrink-0">
+                                                <EditBtn onClick={() => startEdit(d)} />
+                                                {!d.fija && <DeleteBtn onClick={() => del(d)} />}
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        );
+                    })
                 }
             </div>
         </div>

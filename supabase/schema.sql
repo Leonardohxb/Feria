@@ -78,16 +78,18 @@ CREATE TABLE IF NOT EXISTS public.viaje_divisas (
   codigo     TEXT NOT NULL,
   tasa       NUMERIC(14,4) NOT NULL DEFAULT 1 CHECK (tasa > 0),
   es_base    BOOLEAN NOT NULL DEFAULT FALSE,
+  fija       BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (viaje_id, codigo)
 );
 
 CREATE INDEX IF NOT EXISTS idx_viaje_divisas_viaje ON public.viaje_divisas(viaje_id);
 
-COMMENT ON TABLE  public.viaje_divisas       IS 'Divisas propias de cada viaje (USD base + Bs por defecto).';
+COMMENT ON TABLE  public.viaje_divisas       IS 'Divisas propias de cada viaje (USD base + Bs y COP fijas por defecto).';
 COMMENT ON COLUMN public.viaje_divisas.tasa  IS 'Unidades de la divisa por 1 USD (USD = 1).';
+COMMENT ON COLUMN public.viaje_divisas.fija  IS 'TRUE para divisas fijas sembradas (USD, Bs, COP): no borrables.';
 
--- Trigger: sembrar USD + Bs al crear un viaje
+-- Trigger: sembrar USD + Bs + COP al crear un viaje
 CREATE OR REPLACE FUNCTION public.seed_viaje_divisas()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -95,9 +97,10 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  INSERT INTO public.viaje_divisas (viaje_id, codigo, tasa, es_base)
-  VALUES (NEW.id, 'USD', 1, TRUE),
-         (NEW.id, 'Bs',  1, FALSE);
+  INSERT INTO public.viaje_divisas (viaje_id, codigo, tasa, es_base, fija)
+  VALUES (NEW.id, 'USD', 1, TRUE,  TRUE),
+         (NEW.id, 'Bs',  1, FALSE, TRUE),
+         (NEW.id, 'COP', 1, FALSE, TRUE);
   RETURN NEW;
 END;
 $$;
