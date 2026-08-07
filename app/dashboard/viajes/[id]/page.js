@@ -654,7 +654,11 @@ function DivisasPanel({ viajeId, readOnly, onChange }) {
         onChange?.();
     }
 
-    function startEdit(d) { setEditId(d.id); setEditVal({ codigo: d.codigo, tasa: String(d.tasa) }); }
+    function startEdit(d) {
+        const sinConfigurar = d.fija && !d.es_base && Number(d.tasa) === 1;
+        setEditId(d.id);
+        setEditVal({ codigo: d.codigo, tasa: sinConfigurar ? '' : String(d.tasa) });
+    }
 
     async function saveEdit() {
         const tasa = Number(editVal.tasa);
@@ -695,7 +699,7 @@ function DivisasPanel({ viajeId, readOnly, onChange }) {
             {adding && (
                 <form onSubmit={addDivisa} className="card bg-stone-50 dark:bg-slate-800 flex gap-2 mb-2.5">
                     <input placeholder="Código (ej. COP)" value={nueva.codigo} onChange={e => setNueva(n => ({ ...n, codigo: e.target.value }))} className="input-base flex-1" />
-                    <input type="number" step="0.0001" min="0" placeholder="1 USD = ?" value={nueva.tasa} onChange={e => setNueva(n => ({ ...n, tasa: e.target.value }))} className="input-base flex-1" />
+                    <input type="number" step="0.0001" min="0" placeholder="0" value={nueva.tasa} onChange={e => setNueva(n => ({ ...n, tasa: e.target.value }))} className="input-base flex-1" />
                     <button type="submit" className="btn-secondary text-sm px-3 shrink-0" style={{ width: 'auto' }}>Agregar</button>
                 </form>
             )}
@@ -710,7 +714,7 @@ function DivisasPanel({ viajeId, readOnly, onChange }) {
                                 {editando ? (
                                     <>
                                         <span className="text-xs text-stone-400 dark:text-slate-500 shrink-0">1 USD =</span>
-                                        <input type="number" step="0.0001" min="0" value={editVal.tasa} onChange={e => setEditVal(v => ({ ...v, tasa: e.target.value }))} className="input-base w-28" />
+                                        <input type="number" step="0.0001" min="0" placeholder="0" value={editVal.tasa} onChange={e => setEditVal(v => ({ ...v, tasa: e.target.value }))} className="input-base w-28" />
                                         {d.fija
                                             ? <span className="text-sm text-stone-600 dark:text-slate-300 shrink-0 w-24">{d.codigo}</span>
                                             : <input value={editVal.codigo} onChange={e => setEditVal(v => ({ ...v, codigo: e.target.value }))} className="input-base w-24" />}
@@ -722,7 +726,10 @@ function DivisasPanel({ viajeId, readOnly, onChange }) {
                                     <>
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-medium text-stone-800 dark:text-slate-200">
-                                                1 USD = <span className="tabular">{fmt(d.tasa)}</span> {d.codigo}
+                                                1 USD = {pendiente
+                                                    ? <span className="tabular text-stone-300 dark:text-slate-600">0</span>
+                                                    : <span className="tabular">{fmt(d.tasa)}</span>
+                                                } {d.codigo}
                                                 {d.es_base && <span className="text-xs text-stone-400 dark:text-slate-500 ml-2 font-normal">(base)</span>}
                                                 {d.fija && !d.es_base && <span className="text-xs text-stone-400 dark:text-slate-500 ml-2 font-normal">(fija)</span>}
                                             </p>
