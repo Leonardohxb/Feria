@@ -131,6 +131,26 @@ COMMENT ON TABLE public.productos IS 'Catálogo de hortalizas del dueño, usado 
 
 
 -- ============================================================
+-- 4b. TABLA: costo_tipos
+--     Catálogo de tipos de costo custom del dueño (los 8
+--     predeterminados viven en el cliente). Análoga a productos.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS public.costo_tipos (
+  id         UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID    NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  nombre     TEXT    NOT NULL,
+  activo     BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, nombre)
+);
+
+CREATE INDEX IF NOT EXISTS idx_costo_tipos_user ON public.costo_tipos(user_id);
+
+COMMENT ON TABLE public.costo_tipos IS 'Catálogo de tipos de costo custom del dueño (los predeterminados viven en el cliente).';
+
+
+-- ============================================================
 -- 5. TABLA: compras
 --    Lo que el dueño compró a los proveedores en el viaje.
 -- ============================================================
@@ -241,6 +261,14 @@ ALTER TABLE public.productos ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "productos_own"
   ON public.productos FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- costo_tipos
+ALTER TABLE public.costo_tipos ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "costo_tipos_own"
+  ON public.costo_tipos FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 

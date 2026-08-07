@@ -175,6 +175,82 @@ function ProductoField({ value, onChange, productos, onCreated, userId }) {
     );
 }
 
+/* ── Catálogo de tipos de costo (custom del usuario) ─────── */
+function useCostoTipos() {
+    const { user } = useAuth();
+    const [tipos, setTipos] = useState([]);
+
+    const load = useCallback(async () => {
+        if (!user) return;
+        const { data } = await supabase.from('costo_tipos').select('*').eq('activo', true).order('nombre');
+        setTipos(data ?? []);
+    }, [user]);
+
+    useEffect(() => { load(); }, [load]);
+
+    return { tipos, reload: load, userId: user?.id };
+}
+
+/* ── Select de tipo de costo, con opción de crear uno nuevo ─
+   Combina los predeterminados (hardcodeados) + los custom del
+   usuario, sin duplicar por nombre. */
+function TipoCostoField({ value, onChange, tipos, onCreated, userId }) {
+    const [creating, setCreating] = useState(false);
+    const [newName,  setNewName]  = useState('');
+    const [error,    setError]    = useState('');
+
+    // Custom que no chocan con los predeterminados
+    const customUnicos = tipos
+        .map(t => t.nombre)
+        .filter(n => !TIPOS_COSTO.includes(n));
+    const opciones = [...TIPOS_COSTO, ...customUnicos];
+
+    async function handleCreate() {
+        const nombre = newName.trim();
+        if (!nombre) return;
+        const { data, error: dbErr } = await supabase
+            .from('costo_tipos').insert({ user_id: userId, nombre }).select().single();
+        if (dbErr) return setError('Ya existe un tipo con ese nombre.');
+        onCreated(data);
+        onChange(data.nombre);
+        setNewName('');
+        setError('');
+        setCreating(false);
+    }
+
+    if (creating) {
+        return (
+            <div className="col-span-2 flex gap-2">
+                <input
+                    autoFocus placeholder="Nombre del nuevo tipo"
+                    value={newName} onChange={e => setNewName(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCreate(); } }}
+                    className="input-base flex-1"
+                />
+                <button type="button" onClick={handleCreate} className="btn-secondary text-sm px-3 shrink-0" style={{ width: 'auto' }}>
+                    Crear
+                </button>
+                <button type="button" onClick={() => { setCreating(false); setError(''); }} className="text-stone-400 hover:text-stone-600 shrink-0 px-1 flex items-center">
+                    <X className="w-4 h-4" />
+                </button>
+                {error && <p className="text-xs text-red-500 col-span-2">{error}</p>}
+            </div>
+        );
+    }
+
+    return (
+        <select
+            required value={value}
+            onChange={e => e.target.value === '__nuevo__' ? setCreating(true) : onChange(e.target.value)}
+            className="input-base"
+        >
+            <option value="" disabled>Selecciona un tipo...</option>
+            {opciones.map(t => <option key={t} value={t}>{TIPO_LABEL(t)}</option>)}
+            <option value="__nuevo__">+ Crear nuevo tipo...</option>
+        </select>
+    );
+}
+
 /* ── Inline form ─────────────────────────────────────────── */
 function InlineForm({ children, onSubmit, saving, label }) {
     return (
@@ -400,6 +476,7 @@ function CostosTab({ viajeId, readOnly, titulo }) {
     const [editId,   setEditId]   = useState(null);
     const EMPTY = { tipo: 'obreros', descripcion: '', monto: '', fecha: today() };
     const [form, setForm] = useState(EMPTY);
+    const { tipos, reload: reloadTipos, userId } = useCostoTipos();
 
     const load = useCallback(async () => {
         const { data } = await supabase.from('costos_adicionales').select('*').eq('viaje_id', viajeId).order('fecha', { ascending: false });
@@ -443,11 +520,12 @@ function CostosTab({ viajeId, readOnly, titulo }) {
 
             {showForm && (
                 <InlineForm onSubmit={handleSubmit} saving={saving} label={editId ? 'Guardar cambios' : 'Guardar costo'}>
-                    <select value={form.tipo} onChange={sf('tipo')} className="input-base">
-                        {TIPOS_COSTO.map(t => (
-                            <option key={t} value={t}>{TIPO_LABEL(t)}</option>
-                        ))}
-                    </select>
+                    <TipoCostoField
+                        value={form.tipo}
+                        onChange={v => setForm(f => ({ ...f, tipo: v }))}
+                        tipos={tipos} userId={userId}
+                        onCreated={() => reloadTipos()}
+                    />
                     <input type="date" value={form.fecha} onChange={sf('fecha')} className="input-base" />
                     <input required placeholder="Descripción" value={form.descripcion} onChange={sf('descripcion')} className="input-base col-span-2" />
                     <input required type="number" step="0.01" min="0" placeholder="Monto ($)" value={form.monto} onChange={sf('monto')} className="input-base col-span-2" />
