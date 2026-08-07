@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, X, Pencil, ClipboardList, HardHat, Utensils, BedDouble, Fuel, Droplet, Truck, Tag } from 'lucide-react';
 import { FASES, FASE_META, faseIndex, avanceConfig } from '@/lib/viajeFases.mjs';
+import { montoUsd } from '@/lib/divisas.mjs';
 import supabase from '@/lib/supabaseClient';
 import { useAuth } from '@/context/AuthContext';
 
@@ -191,28 +192,37 @@ function InlineForm({ children, onSubmit, saving, label }) {
 }
 
 /* ── Compras Tab ────────────────────────────────────────── */
-function ComprasTab({ viajeId, readOnly, titulo }) {
-    const [items,     setItems]     = useState([]);
-    const [loading,   setLoading]   = useState(true);
-    const [showForm,  setShowForm]  = useState(false);
-    const [saving,    setSaving]    = useState(false);
-    const [editId,    setEditId]    = useState(null);
-    const EMPTY = { producto: '', cantidad: '', unidad: 'kg', precio_unitario: '', fecha: today(), notas: '' };
+function ComprasTab({ viajeId, readOnly, titulo, divisasVersion }) {
+    const [items,    setItems]    = useState([]);
+    const [divisas,  setDivisas]  = useState([]);
+    const [loading,  setLoading]  = useState(true);
+    const [showForm, setShowForm] = useState(false);
+    const [saving,   setSaving]   = useState(false);
+    const [editId,   setEditId]   = useState(null);
+    const EMPTY = { producto: '', cantidad: '', unidad: 'kg', precio_unitario: '', divisa_id: '', fecha: today(), notas: '' };
     const [form, setForm] = useState(EMPTY);
     const { productos, reload: reloadProductos, userId } = useProductos();
 
     const load = useCallback(async () => {
-        const { data } = await supabase.from('compras').select('*').eq('viaje_id', viajeId).order('fecha', { ascending: false });
-        setItems(data ?? []);
+        const [cR, dR] = await Promise.all([
+            supabase.from('compras').select('*, viaje_divisas(codigo,tasa,es_base)').eq('viaje_id', viajeId).order('fecha', { ascending: false }),
+            supabase.from('viaje_divisas').select('*').eq('viaje_id', viajeId).order('es_base', { ascending: false }).order('codigo'),
+        ]);
+        setItems(cR.data ?? []);
+        setDivisas(dR.data ?? []);
         setLoading(false);
     }, [viajeId]);
 
-    useEffect(() => { load(); }, [load]);
+    useEffect(() => { load(); }, [load, divisasVersion]);
+
+    const baseDivisa = divisas.find(d => d.es_base) ?? divisas[0];
+    const divisaSel  = divisas.find(d => d.id === (form.divisa_id || baseDivisa?.id)) ?? baseDivisa;
 
     function sf(k) { return e => setForm(f => ({ ...f, [k]: e.target.value })); }
-    function resetForm() { setForm(EMPTY); setEditId(null); setShowForm(false); }
+    function resetForm() { setForm({ ...EMPTY, divisa_id: baseDivisa?.id ?? '' }); setEditId(null); setShowForm(false); }
+    function openForm()  { setForm({ ...EMPTY, divisa_id: baseDivisa?.id ?? '' }); setEditId(null); setShowForm(true); }
     function startEdit(i) {
-        setForm({ producto: i.producto, cantidad: String(i.cantidad), unidad: i.unidad, precio_unitario: String(i.precio_unitario), fecha: i.fecha, notas: i.notas ?? '' });
+        setForm({ producto: i.producto, cantidad: String(i.cantidad), unidad: i.unidad, precio_unitario: String(i.precio_unitario), divisa_id: i.divisa_id ?? baseDivisa?.id ?? '', fecha: i.fecha, notas: i.notas ?? '' });
         setEditId(i.id);
         setShowForm(true);
     }
@@ -224,6 +234,7 @@ function ComprasTab({ viajeId, readOnly, titulo }) {
             viaje_id: viajeId, producto: form.producto,
             cantidad: Number(form.cantidad), unidad: form.unidad,
             precio_unitario: Number(form.precio_unitario),
+            divisa_id: form.divisa_id || baseDivisa?.id || null,
             fecha: form.fecha, notas: form.notas || null,
         };
         if (editId) await supabase.from('compras').update(payload).eq('id', editId);
@@ -235,12 +246,12 @@ function ComprasTab({ viajeId, readOnly, titulo }) {
 
     async function del(id) { await supabase.from('compras').delete().eq('id', id); load(); }
 
-    const total = items.reduce((s, i) => s + Number(i.cantidad) * Number(i.precio_unitario), 0);
+    const total = items.reduce((s, i) => s + montoUsd(i.cantidad, i.precio_unitario, i.viaje_divisas?.tasa ?? 1), 0);
 
     return (
         <div className="space-y-2.5">
             <SectionHeader titulo={titulo} count={items.length} total={total} color="text-foreground">
-                {!readOnly && <AddButton onClick={() => showForm ? resetForm() : setShowForm(true)} open={showForm} />}
+                {!readOnly && <AddButton onClick={() => showForm ? resetForm() : openForm()} open={showForm} />}
             </SectionHeader>
 
             {showForm && (
@@ -255,7 +266,10 @@ function ComprasTab({ viajeId, readOnly, titulo }) {
                     <select value={form.unidad} onChange={sf('unidad')} className="input-base">
                         {UNIDADES.map(u => <option key={u}>{u}</option>)}
                     </select>
-                    <input required type="number" step="0.01" min="0" placeholder="Precio por unidad ($)" value={form.precio_unitario} onChange={sf('precio_unitario')} className="input-base col-span-2" />
+                    <input required type="number" step="0.01" min="0" placeholder={`Precio por unidad (${divisaSel?.codigo ?? 'USD'})`} value={form.precio_unitario} onChange={sf('precio_unitario')} className="input-base" />
+                    <select value={form.divisa_id || baseDivisa?.id || ''} onChange={sf('divisa_id')} className="input-base">
+                        {divisas.map(d => <option key={d.id} value={d.id}>{d.codigo}</option>)}
+                    </select>
                     <input type="date" value={form.fecha} onChange={sf('fecha')} className="input-base" />
                     <input placeholder="Notas (opcional)" value={form.notas} onChange={sf('notas')} className="input-base" />
                 </InlineForm>
@@ -264,16 +278,23 @@ function ComprasTab({ viajeId, readOnly, titulo }) {
             <div className="rounded-xl border border-border bg-muted p-2.5 space-y-2.5">
                 {loading ? <Spinner />
                     : items.length === 0 ? <EmptyState msg="Sin compras registradas. Agrega la primera." />
-                    : items.map(i => (
-                        <ItemRow key={i.id}
-                            title={i.producto}
-                            line={`${i.cantidad} ${i.unidad} × $${fmt(i.precio_unitario)} = $${fmt(Number(i.cantidad) * Number(i.precio_unitario))}`}
-                            date={fmtDate(i.fecha)}
-                            note={i.notas}
-                            onEdit={!readOnly ? () => startEdit(i) : null}
-                            onDelete={!readOnly ? () => del(i.id) : null}
-                        />
-                    ))
+                    : items.map(i => {
+                        const d = i.viaje_divisas ?? { codigo: 'USD', tasa: 1, es_base: true };
+                        const sub = Number(i.cantidad) * Number(i.precio_unitario);
+                        const line = d.es_base
+                            ? `${i.cantidad} ${i.unidad} × $${fmt(i.precio_unitario)} = $${fmt(sub)}`
+                            : `${i.cantidad} ${i.unidad} × ${d.codigo} ${fmt(i.precio_unitario)} = ${d.codigo} ${fmt(sub)} · ≈ $${fmt(montoUsd(i.cantidad, i.precio_unitario, d.tasa))}`;
+                        return (
+                            <ItemRow key={i.id}
+                                title={i.producto}
+                                line={line}
+                                date={fmtDate(i.fecha)}
+                                note={i.notas}
+                                onEdit={!readOnly ? () => startEdit(i) : null}
+                                onDelete={!readOnly ? () => del(i.id) : null}
+                            />
+                        );
+                    })
                 }
             </div>
         </div>
