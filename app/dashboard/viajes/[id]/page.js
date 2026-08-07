@@ -342,7 +342,7 @@ function ComprasTab({ viajeId, readOnly, titulo, divisasVersion }) {
                     <select value={form.unidad} onChange={sf('unidad')} className="input-base">
                         {UNIDADES.map(u => <option key={u}>{u}</option>)}
                     </select>
-                    <input required type="number" step="0.01" min="0" placeholder={`Precio por unidad (${divisaSel?.codigo ?? 'USD'})`} value={form.precio_unitario} onChange={sf('precio_unitario')} className="input-base" />
+                    <input required type="number" step="0.01" min="0" placeholder={`Precio de compra (${divisaSel?.codigo ?? 'USD'})`} value={form.precio_unitario} onChange={sf('precio_unitario')} className="input-base" />
                     <select value={form.divisa_id || baseDivisa?.id || ''} onChange={sf('divisa_id')} className="input-base">
                         {divisas.map(d => <option key={d.id} value={d.id}>{d.codigo}</option>)}
                     </select>
