@@ -602,6 +602,115 @@ function Row({ label, value, color, bold }) {
     );
 }
 
+/* ── Panel de divisas del viaje ──────────────────────────── */
+function DivisasPanel({ viajeId, readOnly, onChange }) {
+    const [divisas, setDivisas] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [adding,  setAdding]  = useState(false);
+    const [nueva,   setNueva]   = useState({ codigo: '', tasa: '' });
+    const [editId,  setEditId]  = useState(null);
+    const [editVal, setEditVal] = useState({ codigo: '', tasa: '' });
+
+    const load = useCallback(async () => {
+        const { data } = await supabase.from('viaje_divisas').select('*')
+            .eq('viaje_id', viajeId)
+            .order('es_base', { ascending: false }).order('codigo');
+        setDivisas(data ?? []);
+        setLoading(false);
+    }, [viajeId]);
+
+    useEffect(() => { load(); }, [load]);
+
+    async function addDivisa(e) {
+        e.preventDefault();
+        const codigo = nueva.codigo.trim();
+        const tasa = Number(nueva.tasa);
+        if (!codigo || !(tasa > 0)) return;
+        await supabase.from('viaje_divisas').insert({ viaje_id: viajeId, codigo, tasa, es_base: false });
+        setNueva({ codigo: '', tasa: '' });
+        setAdding(false);
+        load();
+        onChange?.();
+    }
+
+    function startEdit(d) { setEditId(d.id); setEditVal({ codigo: d.codigo, tasa: String(d.tasa) }); }
+
+    async function saveEdit() {
+        const codigo = editVal.codigo.trim();
+        const tasa = Number(editVal.tasa);
+        if (!codigo || !(tasa > 0)) return;
+        await supabase.from('viaje_divisas').update({ codigo, tasa }).eq('id', editId);
+        setEditId(null);
+        load();
+        onChange?.();
+    }
+
+    async function del(d) {
+        if (d.es_base) return;
+        if (!confirm(`¿Borrar la divisa ${d.codigo}? Las compras en ${d.codigo} pasarán a USD con su valor convertido.`)) return;
+        const base = divisas.find(x => x.es_base);
+        const { data: compras } = await supabase.from('compras').select('id,precio_unitario').eq('divisa_id', d.id);
+        for (const c of compras ?? []) {
+            await supabase.from('compras').update({
+                precio_unitario: Number(c.precio_unitario) / Number(d.tasa),
+                divisa_id: base.id,
+            }).eq('id', c.id);
+        }
+        await supabase.from('viaje_divisas').delete().eq('id', d.id);
+        load();
+        onChange?.();
+    }
+
+    return (
+        <div>
+            <div className="flex items-center justify-between gap-3 mb-2.5">
+                <h2 className="text-sm font-semibold text-stone-500 dark:text-slate-400 uppercase tracking-wider">Divisas del viaje</h2>
+                {!readOnly && <AddButton onClick={() => setAdding(a => !a)} open={adding} />}
+            </div>
+
+            {adding && (
+                <form onSubmit={addDivisa} className="card bg-stone-50 dark:bg-slate-800 flex gap-2 mb-2.5">
+                    <input placeholder="Código (ej. COP)" value={nueva.codigo} onChange={e => setNueva(n => ({ ...n, codigo: e.target.value }))} className="input-base flex-1" />
+                    <input type="number" step="0.0001" min="0" placeholder="1 USD = ?" value={nueva.tasa} onChange={e => setNueva(n => ({ ...n, tasa: e.target.value }))} className="input-base flex-1" />
+                    <button type="submit" className="btn-secondary text-sm px-3 shrink-0" style={{ width: 'auto' }}>Agregar</button>
+                </form>
+            )}
+
+            <div className="rounded-xl border border-border bg-muted p-2.5 space-y-2">
+                {loading ? <Spinner />
+                    : divisas.map(d => (
+                        <div key={d.id} className="card py-2.5 px-4 flex items-center gap-3">
+                            {editId === d.id ? (
+                                <>
+                                    <span className="text-xs text-stone-400 dark:text-slate-500 shrink-0">1 USD =</span>
+                                    <input type="number" step="0.0001" min="0" value={editVal.tasa} onChange={e => setEditVal(v => ({ ...v, tasa: e.target.value }))} className="input-base w-28" />
+                                    <input value={editVal.codigo} onChange={e => setEditVal(v => ({ ...v, codigo: e.target.value }))} className="input-base w-24" />
+                                    <div className="flex-1" />
+                                    <button onClick={saveEdit} className="btn-secondary text-sm px-3 shrink-0" style={{ width: 'auto' }}>Guardar</button>
+                                    <button onClick={() => setEditId(null)} className="text-stone-400 hover:text-stone-600 px-1 shrink-0 flex items-center"><X className="w-4 h-4" /></button>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-sm font-medium text-stone-800 dark:text-slate-200 flex-1">
+                                        1 USD = <span className="tabular">{fmt(d.tasa)}</span> {d.codigo}
+                                        {d.es_base && <span className="text-xs text-stone-400 dark:text-slate-500 ml-2 font-normal">(base)</span>}
+                                    </p>
+                                    {!readOnly && !d.es_base && (
+                                        <div className="flex items-center shrink-0">
+                                            <EditBtn onClick={() => startEdit(d)} />
+                                            <DeleteBtn onClick={() => del(d)} />
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    ))
+                }
+            </div>
+        </div>
+    );
+}
+
 /* ── Main Page ──────────────────────────────────────────── */
 export default function ViajeDetallePage() {
     const { id }  = useParams();
