@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS public.viajes (
   fecha_fin    DATE,
   estado       TEXT  NOT NULL DEFAULT 'activo' CHECK (estado IN ('activo', 'cerrado')),
   fase         TEXT  NOT NULL DEFAULT 'preparacion' CHECK (fase IN ('preparacion', 'en_curso', 'ventas')),
+  traslado_tasa_por_kg NUMERIC(10,4) DEFAULT NULL,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -187,6 +188,7 @@ CREATE TABLE IF NOT EXISTS public.ventas (
   cantidad         NUMERIC(10, 2) NOT NULL CHECK (cantidad > 0),
   unidad           TEXT           NOT NULL DEFAULT 'kg',
   precio_unitario  NUMERIC(10, 2) NOT NULL CHECK (precio_unitario >= 0),
+  total_real       NUMERIC(10, 2),
   fecha            DATE           NOT NULL DEFAULT CURRENT_DATE,
   notas            TEXT,
   created_at       TIMESTAMPTZ    NOT NULL DEFAULT NOW()
@@ -195,6 +197,7 @@ CREATE TABLE IF NOT EXISTS public.ventas (
 CREATE INDEX IF NOT EXISTS idx_ventas_viaje ON public.ventas(viaje_id);
 
 COMMENT ON TABLE public.ventas IS 'Ventas de hortalizas realizadas durante el viaje.';
+COMMENT ON COLUMN public.ventas.total_real IS 'Total realmente recibido al vender (si difiere de cantidad × precio_unitario, ej. por liquidación de sobrante).';
 
 
 -- ============================================================

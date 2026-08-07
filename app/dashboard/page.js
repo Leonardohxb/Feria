@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { Truck } from 'lucide-react';
 import supabase from '@/lib/supabaseClient';
 import { useAuth } from '@/context/AuthContext';
-import { montoUsd } from '@/lib/divisas.mjs';
+import { montoUsd, costoFinalPorKg, ventaTotal } from '@/lib/divisas.mjs';
 
 function fmt(n) {
     return Number(n ?? 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -21,17 +21,26 @@ export default function DashboardPage() {
         async function load() {
             const [viajesR, comprasR, ventasR, costosR] = await Promise.all([
                 supabase.from('viajes').select('*').order('created_at', { ascending: false }),
-                supabase.from('compras').select('viaje_id,cantidad,precio_unitario, viaje_divisas(tasa)'),
-                supabase.from('ventas').select('viaje_id,cantidad,precio_unitario'),
+                supabase.from('compras').select('viaje_id,cantidad,unidad,precio_unitario, viaje_divisas(tasa)'),
+                supabase.from('ventas').select('viaje_id,cantidad,precio_unitario,total_real'),
                 supabase.from('costos_adicionales').select('viaje_id,monto, viaje_divisas(tasa)'),
             ]);
 
+            // Mapa de tasa de traslado por viaje (para el costo final de compras en kg).
+            const tasaViaje = Object.fromEntries((viajesR.data ?? []).map(v => [v.id, Number(v.traslado_tasa_por_kg) || 0]));
+
             // Agregación por viaje (respeta RLS: solo llegan filas del dueño).
-            // Compras y costos se convierten a USD con la tasa de su divisa.
+            // Compras: si es kg, precio + tasa de traslado del viaje; si no, solo precio.
+            // Ventas: usa total_real si existe.
+            // Costos: se convierten a USD con la tasa de su divisa.
             const acc = {};
             const ensure = id => (acc[id] ??= { compras: 0, ventas: 0, costos: 0 });
-            (comprasR.data ?? []).forEach(c => { ensure(c.viaje_id).compras += montoUsd(c.cantidad, c.precio_unitario, c.viaje_divisas?.tasa ?? 1); });
-            (ventasR.data  ?? []).forEach(v => { ensure(v.viaje_id).ventas  += Number(v.cantidad) * Number(v.precio_unitario); });
+            (comprasR.data ?? []).forEach(c => {
+                const precioUsd = montoUsd(1, c.precio_unitario, c.viaje_divisas?.tasa ?? 1);
+                const porKg = c.unidad === 'kg' ? costoFinalPorKg(precioUsd, tasaViaje[c.viaje_id] ?? 0) : precioUsd;
+                ensure(c.viaje_id).compras += Number(c.cantidad) * porKg;
+            });
+            (ventasR.data  ?? []).forEach(v => { ensure(v.viaje_id).ventas  += ventaTotal(v.cantidad, v.precio_unitario, v.total_real); });
             (costosR.data  ?? []).forEach(k => { ensure(k.viaje_id).costos  += montoUsd(1, k.monto, k.viaje_divisas?.tasa ?? 1); });
 
             const conTotales = (viajesR.data ?? []).map(v => {

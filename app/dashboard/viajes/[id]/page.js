@@ -1,15 +1,15 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, X, Pencil, ClipboardList, HardHat, Utensils, BedDouble, Fuel, Droplet, Truck, Package, Tag } from 'lucide-react';
+import { ArrowLeft, X, Pencil, ClipboardList, HardHat, Utensils, BedDouble, Fuel, Droplet, Truck, Tag } from 'lucide-react';
 import { FASES, FASE_META, faseIndex, avanceConfig } from '@/lib/viajeFases.mjs';
-import { montoUsd } from '@/lib/divisas.mjs';
+import { montoUsd, costoFinalPorKg, ventaTotal } from '@/lib/divisas.mjs';
 import supabase from '@/lib/supabaseClient';
 import { useAuth } from '@/context/AuthContext';
 
 const UNIDADES    = ['kg', 'caja', 'unidad', 'saco', 'paca', 'otro'];
-const TIPOS_COSTO = ['administracion', 'obreros', 'comida', 'hotel', 'gasolina', 'gasoil', 'transporte', 'traslado', 'otro'];
-const TIPO_ICON   = { administracion: ClipboardList, obreros: HardHat, comida: Utensils, hotel: BedDouble, gasolina: Fuel, gasoil: Droplet, transporte: Truck, traslado: Package, otro: Tag };
+const TIPOS_COSTO = ['administracion', 'obreros', 'comida', 'hotel', 'gasolina', 'gasoil', 'transporte', 'otro'];
+const TIPO_ICON   = { administracion: ClipboardList, obreros: HardHat, comida: Utensils, hotel: BedDouble, gasolina: Fuel, gasoil: Droplet, transporte: Truck, otro: Tag };
 const TIPO_LABEL  = t => t.charAt(0).toUpperCase() + t.slice(1);
 
 function fmt(n) {
@@ -125,33 +125,47 @@ function useProductos() {
 
 /* ── Materiales comprados en el viaje (para Ventas) ────────
    Carga los productos de las compras del viaje (agregados por
-   nombre, con cantidad y unidad) para que al vender se parta
-   de lo que ya se compró y se autocompleten los campos. */
-function useMaterialesViaje(viajeId) {
+   nombre) con cantidad y costo total estimado (compra + traslado
+   proporcional para kg) para mostrarlos al vender. */
+function useMaterialesViaje(viajeId, tasaTraslado) {
     const { user } = useAuth();
     const [materiales, setMateriales] = useState([]);
 
     const load = useCallback(async () => {
         if (!user) return;
         const { data } = await supabase.from('compras')
-            .select('producto,unidad,cantidad')
+            .select('producto,unidad,cantidad,precio_unitario, viaje_divisas(tasa)')
             .eq('viaje_id', viajeId);
         const map = new Map();
         (data ?? []).forEach(c => {
             if (!c.producto) return;
+            const precioUsd = montoUsd(1, c.precio_unitario, c.viaje_divisas?.tasa ?? 1);
+            const costoUsd = Number(c.cantidad) * precioUsd;
             const existing = map.get(c.producto);
-            if (existing) {
-                if (existing.unidad === c.unidad) existing.cantidad += Number(c.cantidad);
-            } else {
-                map.set(c.producto, { nombre: c.producto, unidad: c.unidad, cantidad: Number(c.cantidad), activo: true });
+            if (existing && existing.unidad === c.unidad) {
+                existing.cantidad += Number(c.cantidad);
+                existing.costoCompras += costoUsd;
+            } else if (!existing) {
+                map.set(c.producto, {
+                    nombre: c.producto,
+                    unidad: c.unidad,
+                    cantidad: Number(c.cantidad),
+                    costoCompras: costoUsd,
+                    activo: true,
+                });
             }
         });
-        const lista = [...map.values()].map(m => ({
-            ...m,
-            label: `${m.nombre} (${m.cantidad} ${m.unidad})`,
-        })).sort((a, b) => a.nombre.localeCompare(b.nombre));
+        const tasa = Number(tasaTraslado) || 0;
+        const lista = [...map.values()].map(m => {
+            const costoTotal = m.costoCompras + (m.unidad === 'kg' ? m.cantidad * tasa : 0);
+            return {
+                ...m,
+                costoEstimado: costoTotal,
+                label: `${m.nombre} (${Number(m.cantidad)} ${m.unidad})`,
+            };
+        }).sort((a, b) => a.nombre.localeCompare(b.nombre));
         setMateriales(lista);
-    }, [user, viajeId]);
+    }, [user, viajeId, tasaTraslado]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -303,29 +317,28 @@ function InlineForm({ children, onSubmit, saving, label }) {
 }
 
 /* ── Compras Tab ────────────────────────────────────────── */
-function ComprasTab({ viajeId, readOnly, titulo, divisasVersion }) {
+function ComprasTab({ viajeId, readOnly, titulo, divisasVersion, tasaTraslado, onTasaChange }) {
     const [items,    setItems]    = useState([]);
     const [divisas,  setDivisas]  = useState([]);
     const [loading,  setLoading]  = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [saving,   setSaving]   = useState(false);
     const [editId,   setEditId]   = useState(null);
-    const [traslado, setTraslado] = useState({ id: null, valor: '' });
+    const [tasa,     setTasa]     = useState('');
     const EMPTY = { producto: '', cantidad: '', unidad: 'kg', precio_unitario: '', divisa_id: '', fecha: today(), notas: '' };
     const [form, setForm] = useState(EMPTY);
     const { productos, reload: reloadProductos, userId } = useProductos();
 
+    // Sincroniza el input de tasa con el valor que viene del viaje (prop).
+    useEffect(() => { setTasa(tasaTraslado != null ? String(tasaTraslado) : ''); }, [tasaTraslado]);
+
     const load = useCallback(async () => {
-        const [cR, dR, tR] = await Promise.all([
+        const [cR, dR] = await Promise.all([
             supabase.from('compras').select('*, viaje_divisas(codigo,tasa,es_base)').eq('viaje_id', viajeId).order('fecha', { ascending: false }),
             supabase.from('viaje_divisas').select('*').eq('viaje_id', viajeId).order('es_base', { ascending: false }).order('codigo'),
-            supabase.from('costos_adicionales').select('id,monto')
-                .eq('viaje_id', viajeId).eq('tipo', 'traslado').eq('descripcion', 'Traslado de compras')
-                .maybeSingle(),
         ]);
         setItems(cR.data ?? []);
         setDivisas(dR.data ?? []);
-        setTraslado(tR.data ? { id: tR.data.id, valor: String(tR.data.monto) } : { id: null, valor: '' });
         setLoading(false);
     }, [viajeId]);
 
@@ -333,6 +346,7 @@ function ComprasTab({ viajeId, readOnly, titulo, divisasVersion }) {
 
     const baseDivisa = divisas.find(d => d.es_base) ?? divisas[0];
     const divisaSel  = divisas.find(d => d.id === (form.divisa_id || baseDivisa?.id)) ?? baseDivisa;
+    const tasaNum    = Number(tasa) || 0;
 
     function sf(k) { return e => setForm(f => ({ ...f, [k]: e.target.value })); }
     function resetForm() { setForm({ ...EMPTY, divisa_id: baseDivisa?.id ?? '' }); setEditId(null); setShowForm(false); }
@@ -362,41 +376,34 @@ function ComprasTab({ viajeId, readOnly, titulo, divisasVersion }) {
 
     async function del(id) { await supabase.from('compras').delete().eq('id', id); load(); }
 
-    // Costo de traslado: atajo que crea/actualiza/borra un costo_adicional tipo 'traslado'.
-    async function saveTraslado() {
-        const montoNum = Number(traslado.valor);
-        if (!montoNum || montoNum <= 0) {
-            if (traslado.id) {
-                await supabase.from('costos_adicionales').delete().eq('id', traslado.id);
-                setTraslado({ id: null, valor: '' });
-            }
-            return;
-        }
-        if (traslado.id) {
-            await supabase.from('costos_adicionales').update({ monto: montoNum }).eq('id', traslado.id);
-        } else {
-            const { data } = await supabase.from('costos_adicionales').insert({
-                viaje_id: viajeId, tipo: 'traslado', descripcion: 'Traslado de compras',
-                monto: montoNum, divisa_id: baseDivisa?.id ?? null, fecha: today(),
-            }).select().single();
-            if (data) setTraslado(t => ({ ...t, id: data.id }));
-        }
+    // Guarda la tasa de traslado en el viaje (NULL si vacío o 0).
+    async function saveTasa() {
+        const valor = Number(tasa);
+        const nuevo = (!isNaN(valor) && valor > 0) ? valor : null;
+        await supabase.from('viajes').update({ traslado_tasa_por_kg: nuevo }).eq('id', viajeId);
+        onTasaChange?.(nuevo);
     }
 
-    const total = items.reduce((s, i) => s + montoUsd(i.cantidad, i.precio_unitario, i.viaje_divisas?.tasa ?? 1), 0)
-        + (Number(traslado.valor) || 0);
+    // Costo de un item en USD: si es kg, precio + traslado; si no, solo precio.
+    function costoItem(i) {
+        const precioUsd = montoUsd(1, i.precio_unitario, i.viaje_divisas?.tasa ?? 1);
+        const porKg = i.unidad === 'kg' ? costoFinalPorKg(precioUsd, tasaNum) : precioUsd;
+        return Number(i.cantidad) * porKg;
+    }
+
+    const total = items.reduce((s, i) => s + costoItem(i), 0);
 
     return (
         <div className="space-y-2.5">
             <SectionHeader titulo={titulo} count={items.length} total={total} color="text-foreground">
                 {!readOnly && (
-                    <label className="flex items-center gap-1.5 text-xs text-stone-500 dark:text-slate-400" title="Costo traslado (USD)">
-                        <Package className="w-3.5 h-3.5" />
+                    <label className="flex items-center gap-1.5 text-xs text-stone-500 dark:text-slate-400" title="Costo de traslado por kg (se suma al precio de compra)">
+                        <span>Traslado $/kg</span>
                         <input
-                            type="number" step="0.01" min="0" placeholder="0"
-                            value={traslado.valor}
-                            onChange={e => setTraslado(t => ({ ...t, valor: e.target.value }))}
-                            onBlur={saveTraslado}
+                            type="number" step="0.0001" min="0" placeholder="0"
+                            value={tasa}
+                            onChange={e => setTasa(e.target.value)}
+                            onBlur={saveTasa}
                             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
                             className="input-base w-20 py-1 text-sm"
                         />
@@ -431,10 +438,14 @@ function ComprasTab({ viajeId, readOnly, titulo, divisasVersion }) {
                     : items.length === 0 ? <EmptyState msg="Sin compras registradas. Agrega la primera." />
                     : items.map(i => {
                         const d = i.viaje_divisas ?? { codigo: 'USD', tasa: 1, es_base: true };
-                        const sub = Number(i.cantidad) * Number(i.precio_unitario);
+                        const precioUsd = montoUsd(1, i.precio_unitario, d.tasa);
+                        const esKg = i.unidad === 'kg';
+                        const costoPorKg = esKg ? costoFinalPorKg(precioUsd, tasaNum) : precioUsd;
+                        const sub = Number(i.cantidad) * costoPorKg;
+                        const trasladoExtra = esKg && tasaNum > 0;
                         const line = d.es_base
-                            ? `${i.cantidad} ${i.unidad} × $${fmt(i.precio_unitario)} = $${fmt(sub)}`
-                            : `${i.cantidad} ${i.unidad} × ${d.codigo} ${fmt(i.precio_unitario)} = ${d.codigo} ${fmt(sub)} · ≈ $${fmt(montoUsd(i.cantidad, i.precio_unitario, d.tasa))}`;
+                            ? `${i.cantidad} ${i.unidad} × $${fmt(costoPorKg)}/kg${trasladoExtra ? ` ($${fmt(precioUsd)} + $${fmt(tasaNum)} traslado)` : ''} = $${fmt(sub)}`
+                            : `${i.cantidad} ${i.unidad} × $${fmt(costoPorKg)}/kg${trasladoExtra ? ` ($${fmt(precioUsd)} + $${fmt(tasaNum)} traslado)` : ''} = $${fmt(sub)}`;
                         return (
                             <ItemRow key={i.id}
                                 title={i.producto}
@@ -453,15 +464,15 @@ function ComprasTab({ viajeId, readOnly, titulo, divisasVersion }) {
 }
 
 /* ── Ventas Tab ─────────────────────────────────────────── */
-function VentasTab({ viajeId, readOnly, titulo }) {
+function VentasTab({ viajeId, readOnly, titulo, tasaTraslado }) {
     const [items,    setItems]    = useState([]);
     const [loading,  setLoading]  = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [saving,   setSaving]   = useState(false);
     const [editId,   setEditId]   = useState(null);
-    const EMPTY = { producto: '', cantidad: '', unidad: 'kg', precio_unitario: '', fecha: today(), notas: '' };
+    const EMPTY = { producto: '', cantidad: '', unidad: 'kg', total_recibido: '', fecha: today(), notas: '' };
     const [form, setForm] = useState(EMPTY);
-    const { materiales, reload: reloadMateriales, userId } = useMaterialesViaje(viajeId);
+    const { materiales, reload: reloadMateriales, userId } = useMaterialesViaje(viajeId, tasaTraslado);
 
     const load = useCallback(async () => {
         const { data } = await supabase.from('ventas').select('*').eq('viaje_id', viajeId).order('fecha', { ascending: false });
@@ -474,18 +485,24 @@ function VentasTab({ viajeId, readOnly, titulo }) {
     function sf(k) { return e => setForm(f => ({ ...f, [k]: e.target.value })); }
     function resetForm() { setForm(EMPTY); setEditId(null); setShowForm(false); }
     function startEdit(i) {
-        setForm({ producto: i.producto, cantidad: String(i.cantidad), unidad: i.unidad, precio_unitario: String(i.precio_unitario), fecha: i.fecha, notas: i.notas ?? '' });
+        const t = i.total_real != null ? i.total_real : Number(i.cantidad) * Number(i.precio_unitario);
+        setForm({ producto: i.producto, cantidad: String(i.cantidad), unidad: i.unidad, total_recibido: String(t), fecha: i.fecha, notas: i.notas ?? '' });
         setEditId(i.id);
         setShowForm(true);
     }
 
     async function handleSubmit(e) {
         e.preventDefault();
+        const total = Number(form.total_recibido);
+        if (!(total > 0)) return;
+        const cantidadNum = Number(form.cantidad) || 0;
+        const precioDerivado = cantidadNum > 0 ? total / cantidadNum : 0;
         setSaving(true);
         const payload = {
             viaje_id: viajeId, producto: form.producto,
-            cantidad: Number(form.cantidad), unidad: form.unidad,
-            precio_unitario: Number(form.precio_unitario),
+            cantidad: cantidadNum, unidad: form.unidad,
+            precio_unitario: precioDerivado,
+            total_real: total,
             fecha: form.fecha, notas: form.notas || null,
         };
         if (editId) await supabase.from('ventas').update(payload).eq('id', editId);
@@ -497,7 +514,8 @@ function VentasTab({ viajeId, readOnly, titulo }) {
 
     async function del(id) { await supabase.from('ventas').delete().eq('id', id); load(); }
 
-    const total = items.reduce((s, i) => s + Number(i.cantidad) * Number(i.precio_unitario), 0);
+    const total = items.reduce((s, i) => s + ventaTotal(i.cantidad, i.precio_unitario, i.total_real), 0);
+    const materialSel = materiales.find(m => m.nombre === form.producto);
 
     return (
         <div className="space-y-2.5">
@@ -522,11 +540,17 @@ function VentasTab({ viajeId, readOnly, titulo }) {
                         onCreated={() => reloadMateriales()}
                         permitirCrear={false}
                     />
-                    <input required type="number" step="0.01" min="0.01" placeholder="Cantidad" value={form.cantidad} onChange={sf('cantidad')} className="input-base" />
-                    <select value={form.unidad} onChange={sf('unidad')} className="input-base">
-                        {UNIDADES.map(u => <option key={u}>{u}</option>)}
-                    </select>
-                    <input required type="number" step="0.01" min="0" placeholder="Precio por unidad ($)" value={form.precio_unitario} onChange={sf('precio_unitario')} className="input-base col-span-2" />
+                    {materialSel && (
+                        <div className="col-span-2 card bg-stone-50 dark:bg-slate-800 px-3 py-2 text-sm space-y-0.5">
+                            <p className="text-stone-700 dark:text-slate-200">
+                                Cantidad: <span className="font-medium tabular">{Number(materialSel.cantidad)} {materialSel.unidad}</span>
+                            </p>
+                            <p className="text-stone-500 dark:text-slate-400">
+                                Total estimado (costo): <span className="font-medium tabular text-stone-700 dark:text-slate-200">${fmt(materialSel.costoEstimado)}</span>
+                            </p>
+                        </div>
+                    )}
+                    <input required type="number" step="0.01" min="0" placeholder="Total recibido ($)" value={form.total_recibido} onChange={sf('total_recibido')} className="input-base col-span-2" />
                     <input type="date" value={form.fecha} onChange={sf('fecha')} className="input-base" />
                     <input placeholder="Notas (opcional)" value={form.notas} onChange={sf('notas')} className="input-base" />
                 </InlineForm>
@@ -535,16 +559,19 @@ function VentasTab({ viajeId, readOnly, titulo }) {
             <div className="rounded-xl border border-border bg-muted p-2.5 space-y-2.5">
                 {loading ? <Spinner />
                     : items.length === 0 ? <EmptyState msg="Sin ventas registradas. Agrega la primera." />
-                    : items.map(i => (
-                        <ItemRow key={i.id}
-                            title={i.producto}
-                            line={`${i.cantidad} ${i.unidad} × $${fmt(i.precio_unitario)} = $${fmt(Number(i.cantidad) * Number(i.precio_unitario))}`}
-                            date={fmtDate(i.fecha)}
-                            note={i.notas}
-                            onEdit={!readOnly ? () => startEdit(i) : null}
-                            onDelete={!readOnly ? () => del(i.id) : null}
-                        />
-                    ))
+                    : items.map(i => {
+                        const t = ventaTotal(i.cantidad, i.precio_unitario, i.total_real);
+                        return (
+                            <ItemRow key={i.id}
+                                title={i.producto}
+                                line={`${Number(i.cantidad)} ${i.unidad} · $${fmt(t)}`}
+                                date={fmtDate(i.fecha)}
+                                note={i.notas}
+                                onEdit={!readOnly ? () => startEdit(i) : null}
+                                onDelete={!readOnly ? () => del(i.id) : null}
+                            />
+                        );
+                    })
                 }
             </div>
         </div>
@@ -656,7 +683,7 @@ function CostosTab({ viajeId, readOnly, titulo, divisasVersion }) {
 }
 
 /* ── Resumen Tab ────────────────────────────────────────── */
-function ResumenTab({ viajeId }) {
+function ResumenTab({ viajeId, tasaTraslado }) {
     const [data,    setData]    = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -664,12 +691,18 @@ function ResumenTab({ viajeId }) {
         async function load() {
             const [cR, vR, kR] = await Promise.all([
                 supabase.from('compras').select('producto,cantidad,unidad,precio_unitario, viaje_divisas(tasa)').eq('viaje_id', viajeId),
-                supabase.from('ventas').select('producto,cantidad,unidad,precio_unitario').eq('viaje_id', viajeId),
+                supabase.from('ventas').select('producto,cantidad,unidad,precio_unitario,total_real').eq('viaje_id', viajeId),
                 supabase.from('costos_adicionales').select('monto, viaje_divisas(tasa)').eq('viaje_id', viajeId),
             ]);
             const compras = cR.data ?? [], ventas = vR.data ?? [];
-            const totalCompras = compras.reduce((s, i) => s + montoUsd(i.cantidad, i.precio_unitario, i.viaje_divisas?.tasa ?? 1), 0);
-            const totalVentas  = ventas.reduce((s, i) => s + Number(i.cantidad) * Number(i.precio_unitario), 0);
+            const tasa = Number(tasaTraslado) || 0;
+            // Costo de compras: si es kg, precio + tasa de traslado; si no, solo precio.
+            const totalCompras = compras.reduce((s, i) => {
+                const precioUsd = montoUsd(1, i.precio_unitario, i.viaje_divisas?.tasa ?? 1);
+                const porKg = i.unidad === 'kg' ? costoFinalPorKg(precioUsd, tasa) : precioUsd;
+                return s + Number(i.cantidad) * porKg;
+            }, 0);
+            const totalVentas  = ventas.reduce((s, i) => s + ventaTotal(i.cantidad, i.precio_unitario, i.total_real), 0);
             const totalCostos  = (kR.data ?? []).reduce((s, i) => s + montoUsd(1, i.monto, i.viaje_divisas?.tasa ?? 1), 0);
 
             // Sobrante por producto: comprado vs vendido (por nombre de producto)
@@ -683,7 +716,7 @@ function ResumenTab({ viajeId }) {
             setLoading(false);
         }
         load();
-    }, [viajeId]);
+    }, [viajeId, tasaTraslado]);
 
     if (loading) return <Spinner />;
 
@@ -1034,13 +1067,13 @@ export default function ViajeDetallePage() {
             {vista === 'preparacion' && (
                 <div className="space-y-6">
                     <DivisasPanel viajeId={id} readOnly={isClosed} onChange={() => setDivisasVersion(v => v + 1)} />
-                    <ComprasTab viajeId={id} readOnly={isClosed} titulo="Compras" divisasVersion={divisasVersion} />
+                    <ComprasTab viajeId={id} readOnly={isClosed} titulo="Compras" divisasVersion={divisasVersion} tasaTraslado={viaje?.traslado_tasa_por_kg} onTasaChange={t => setViaje(v => v ? { ...v, traslado_tasa_por_kg: t } : v)} />
                     <CostosTab  viajeId={id} readOnly={isClosed} titulo="Costos iniciales" divisasVersion={divisasVersion} />
                 </div>
             )}
             {vista === 'en_curso' && <CostosTab viajeId={id} readOnly={isClosed} titulo="Costos del viaje" divisasVersion={divisasVersion} />}
-            {vista === 'ventas'   && <VentasTab viajeId={id} readOnly={isClosed} titulo="Ventas" />}
-            {vista === 'resumen'  && <ResumenTab viajeId={id} />}
+            {vista === 'ventas'   && <VentasTab viajeId={id} readOnly={isClosed} titulo="Ventas" tasaTraslado={viaje?.traslado_tasa_por_kg} />}
+            {vista === 'resumen'  && <ResumenTab viajeId={id} tasaTraslado={viaje?.traslado_tasa_por_kg} />}
 
             {/* Acción de avance / cierre */}
             {!isClosed && cfg && (
