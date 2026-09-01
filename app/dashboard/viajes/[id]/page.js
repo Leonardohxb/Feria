@@ -992,6 +992,94 @@ function DivisasPanel({ viajeId, readOnly, onChange }) {
     );
 }
 
+/* ── Resumen dinámico de la fase actual ─────────────────────
+   Trae mini-stats livianas (counts/sumas) específicas de la
+   fase activa del viaje, independientes de lo que cargan los
+   tabs (no duplica su lógica de UI, solo trae los números). */
+function useFaseResumen(viaje, refreshKey) {
+    const [resumen, setResumen] = useState(null);
+    const viajeId = viaje?.id;
+    const fase = viaje?.fase;
+    const fechaInicio = viaje?.fecha_inicio;
+
+    const load = useCallback(async () => {
+        if (!viajeId || !fase) return;
+        setResumen(null);
+
+        if (fase === 'preparacion') {
+            const [cR, dR] = await Promise.all([
+                supabase.from('compras').select('cantidad,precio_unitario, viaje_divisas(tasa)').eq('viaje_id', viajeId),
+                supabase.from('viaje_divisas').select('id', { count: 'exact', head: true }).eq('viaje_id', viajeId),
+            ]);
+            const compras = cR.data ?? [];
+            const total = compras.reduce((s, i) => s + montoUsd(i.cantidad, i.precio_unitario, i.viaje_divisas?.tasa ?? 1), 0);
+            setResumen({
+                items: [
+                    { label: 'Compras', value: String(compras.length) },
+                    { label: 'Gastado', value: `$${fmt(total)}` },
+                    { label: 'Divisas', value: String(dR.count ?? 0) },
+                ],
+            });
+        } else if (fase === 'en_curso') {
+            const { data } = await supabase.from('costos_adicionales').select('monto, viaje_divisas(tasa)').eq('viaje_id', viajeId);
+            const costos = data ?? [];
+            const total = costos.reduce((s, i) => s + montoUsd(1, i.monto, i.viaje_divisas?.tasa ?? 1), 0);
+            const dias = fechaInicio
+                ? Math.max(0, Math.floor((Date.now() - new Date(fechaInicio + 'T00:00:00').getTime()) / 86400000))
+                : 0;
+            setResumen({
+                items: [
+                    { label: 'Costos', value: String(costos.length) },
+                    { label: 'Gastado', value: `$${fmt(total)}` },
+                    { label: 'Días', value: String(dias) },
+                ],
+            });
+        } else if (fase === 'ventas') {
+            const { data } = await supabase.from('ventas').select('cantidad,precio_unitario,total_real').eq('viaje_id', viajeId);
+            const ventas = data ?? [];
+            const total = ventas.reduce((s, i) => s + ventaTotal(i.cantidad, i.precio_unitario, i.total_real), 0);
+            setResumen({
+                items: [
+                    { label: 'Ventas', value: String(ventas.length) },
+                    { label: 'Vendido', value: `$${fmt(total)}` },
+                ],
+            });
+        }
+    }, [viajeId, fase, fechaInicio]);
+
+    useEffect(() => { load(); }, [load, refreshKey]);
+
+    return resumen;
+}
+
+/* ── Fila de mini-stats de la fase actual ───────────────────
+   `resumen` es el valor devuelto por useFaseResumen (null = cargando). */
+function FaseResumen({ fase, resumen }) {
+    const count = fase === 'ventas' ? 2 : 3;
+    const cols  = count === 2 ? 'grid-cols-2' : 'grid-cols-3';
+    const items = resumen?.items ?? Array.from({ length: count }, () => null);
+
+    return (
+        <div className={`grid ${cols} gap-2.5`}>
+            {items.map((it, i) => (
+                <div key={it?.label ?? i} className="stat-tile">
+                    {it ? (
+                        <>
+                            <p className="stat-label">{it.label}</p>
+                            <p className="stat-value">{it.value}</p>
+                        </>
+                    ) : (
+                        <>
+                            <div className="skeleton h-3 w-12 mb-2" />
+                            <div className="skeleton h-5 w-16" />
+                        </>
+                    )}
+                </div>
+            ))}
+        </div>
+    );
+}
+
 /* ── Stepper de fases ─────────────────────────────────────── */
 function FaseStepper({ fase }) {
     const steps = stepperState(fase);
@@ -1027,6 +1115,7 @@ export default function ViajeDetallePage() {
     const [advancing, setAdvancing] = useState(false);
     const [closing,   setClosing]   = useState(false);
     const [divisasVersion, setDivisasVersion] = useState(0);
+    const resumenFase = useFaseResumen(viaje, divisasVersion);
 
     useEffect(() => {
         supabase.from('viajes').select('*').eq('id', id).single()
@@ -1103,7 +1192,12 @@ export default function ViajeDetallePage() {
             </div>
 
             {/* Indicador de fase (una a la vez) */}
-            {!isClosed && <FaseStepper fase={viaje.fase} />}
+            {!isClosed && (
+                <div className="space-y-3">
+                    <FaseStepper fase={viaje.fase} />
+                    <FaseResumen fase={viaje.fase} resumen={resumenFase} />
+                </div>
+            )}
 
             {/* Contenido de la fase actual */}
             {vista === 'preparacion' && (
