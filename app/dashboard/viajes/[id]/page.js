@@ -1,8 +1,8 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, X, Pencil, ClipboardList, HardHat, Utensils, BedDouble, Fuel, Droplet, Truck, Tag } from 'lucide-react';
-import { FASES, FASE_META, faseIndex, avanceConfig } from '@/lib/viajeFases.mjs';
+import { ArrowLeft, X, Pencil, Check, ClipboardList, HardHat, Utensils, BedDouble, Fuel, Droplet, Truck, Tag } from 'lucide-react';
+import { avanceConfig, stepperState } from '@/lib/viajeFases.mjs';
 import { montoUsd, costoFinalPorKg, ventaTotal } from '@/lib/divisas.mjs';
 import supabase from '@/lib/supabaseClient';
 import { useAuth } from '@/context/AuthContext';
@@ -992,6 +992,32 @@ function DivisasPanel({ viajeId, readOnly, onChange }) {
     );
 }
 
+/* ── Stepper de fases ─────────────────────────────────────── */
+function FaseStepper({ fase }) {
+    const steps = stepperState(fase);
+    return (
+        <div className="flex items-center pb-3 border-b border-stone-200 dark:border-slate-700">
+            {steps.map((s, i) => (
+                <div key={s.fase} className="flex items-center flex-1 last:flex-none">
+                    <div className="flex items-center gap-2 shrink-0">
+                        <span className={`fase-step-node fase-step-${s.status}`}>
+                            {s.status === 'done' ? <Check className="w-3.5 h-3.5" /> : i + 1}
+                        </span>
+                        <span className={`text-sm whitespace-nowrap ${
+                            s.status === 'pending' ? 'text-stone-400 dark:text-slate-500' : 'text-foreground'
+                        } ${s.status === 'current' ? 'font-medium' : ''}`}>
+                            {s.label}
+                        </span>
+                    </div>
+                    {i < steps.length - 1 && (
+                        <div className={`fase-step-line ${s.status === 'done' ? 'fase-step-line-done' : ''}`} />
+                    )}
+                </div>
+            ))}
+        </div>
+    );
+}
+
 /* ── Main Page ──────────────────────────────────────────── */
 export default function ViajeDetallePage() {
     const { id }  = useParams();
@@ -1047,8 +1073,7 @@ export default function ViajeDetallePage() {
 
     const isClosed = viaje.estado === 'cerrado';
     const vista    = isClosed ? 'resumen' : viaje.fase;
-    const cfg      = avanceConfig(viaje.fase);
-    const pasoNum  = faseIndex(viaje.fase) + 1;
+    const cfg = avanceConfig(viaje.fase);
 
     return (
         <div className="animate-fade-in space-y-5">
@@ -1078,13 +1103,7 @@ export default function ViajeDetallePage() {
             </div>
 
             {/* Indicador de fase (una a la vez) */}
-            {!isClosed && (
-                <div className="flex items-center gap-2 text-sm border-b border-stone-200 dark:border-slate-700 pb-3">
-                    <span className="w-6 h-6 rounded-full bg-foreground text-background text-xs flex items-center justify-center shrink-0">{pasoNum}</span>
-                    <span className="font-medium text-foreground">{FASE_META[viaje.fase].label}</span>
-                    <span className="text-xs text-stone-400 dark:text-slate-500">Paso {pasoNum} de {FASES.length}</span>
-                </div>
-            )}
+            {!isClosed && <FaseStepper fase={viaje.fase} />}
 
             {/* Contenido de la fase actual */}
             {vista === 'preparacion' && (
