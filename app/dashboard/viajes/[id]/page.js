@@ -4,6 +4,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, X, Pencil, Check, ClipboardList, HardHat, Utensils, BedDouble, Fuel, Droplet, Truck, Tag } from 'lucide-react';
 import { avanceConfig, stepperState } from '@/lib/viajeFases.mjs';
 import { montoUsd, costoFinalPorKg, ventaTotal } from '@/lib/divisas.mjs';
+import { ViewToggle, useViewPreference } from '@/app/dashboard/_components/ViewToggle';
+import ProductCard from '@/app/dashboard/_components/ProductCard';
 import supabase from '@/lib/supabaseClient';
 import { useAuth } from '@/context/AuthContext';
 
@@ -331,6 +333,7 @@ function ComprasTab({ viajeId, readOnly, titulo, divisasVersion, tasaTraslado, o
     const EMPTY = { producto: '', cantidad: '', unidad: 'kg', precio_unitario: '', divisa_id: '', fecha: today(), notas: '' };
     const [form, setForm] = useState(EMPTY);
     const { productos, reload: reloadProductos, userId } = useProductos();
+    const [vista, setVista] = useViewPreference('compras');
 
     // Sincroniza el input de tasa con el valor que viene del viaje (prop).
     useEffect(() => { setTasa(tasaTraslado != null ? String(tasaTraslado) : ''); }, [tasaTraslado]);
@@ -408,6 +411,18 @@ function ComprasTab({ viajeId, readOnly, titulo, divisasVersion, tasaTraslado, o
 
     const total = items.reduce((s, i) => s + costoItem(i), 0);
 
+    // Datos ya calculados de un item, usados tanto por la fila de lista como por la tarjeta.
+    function itemView(i) {
+        const d = i.viaje_divisas ?? { codigo: 'USD', tasa: 1, es_base: true };
+        const precioUsd = montoUsd(1, i.precio_unitario, d.tasa);
+        const esKg = i.unidad === 'kg';
+        const costoPorKg = esKg ? costoFinalPorKg(precioUsd, tasaNum) : precioUsd;
+        const sub = Number(i.cantidad) * costoPorKg;
+        const trasladoExtra = esKg && tasaNum > 0;
+        const line = `${i.cantidad} ${i.unidad} × $${fmt(costoPorKg)}/kg${trasladoExtra ? ` ($${fmt(precioUsd)} + $${fmt(tasaNum)} traslado)` : ''} = $${fmt(sub)}`;
+        return { sub, line };
+    }
+
     return (
         <div className="space-y-2.5">
             <SectionHeader titulo={titulo} count={items.length} total={total} color="text-foreground">
@@ -424,6 +439,7 @@ function ComprasTab({ viajeId, readOnly, titulo, divisasVersion, tasaTraslado, o
                         />
                     </label>
                 )}
+                <ViewToggle value={vista} onChange={setVista} />
                 {!readOnly && <AddButton onClick={() => showForm ? resetForm() : openForm()} open={showForm} />}
             </SectionHeader>
 
@@ -448,19 +464,34 @@ function ComprasTab({ viajeId, readOnly, titulo, divisasVersion, tasaTraslado, o
                 </InlineForm>
             )}
 
-            <div className="rounded-xl border border-border bg-muted p-2.5 space-y-2.5">
-                {loading ? <Spinner />
-                    : items.length === 0 ? <EmptyState msg="Sin compras registradas. Agrega la primera." />
-                    : items.map(i => {
-                        const d = i.viaje_divisas ?? { codigo: 'USD', tasa: 1, es_base: true };
-                        const precioUsd = montoUsd(1, i.precio_unitario, d.tasa);
-                        const esKg = i.unidad === 'kg';
-                        const costoPorKg = esKg ? costoFinalPorKg(precioUsd, tasaNum) : precioUsd;
-                        const sub = Number(i.cantidad) * costoPorKg;
-                        const trasladoExtra = esKg && tasaNum > 0;
-                        const line = d.es_base
-                            ? `${i.cantidad} ${i.unidad} × $${fmt(costoPorKg)}/kg${trasladoExtra ? ` ($${fmt(precioUsd)} + $${fmt(tasaNum)} traslado)` : ''} = $${fmt(sub)}`
-                            : `${i.cantidad} ${i.unidad} × $${fmt(costoPorKg)}/kg${trasladoExtra ? ` ($${fmt(precioUsd)} + $${fmt(tasaNum)} traslado)` : ''} = $${fmt(sub)}`;
+            {loading ? (
+                <div className="rounded-xl border border-border bg-muted p-2.5"><Spinner /></div>
+            ) : items.length === 0 ? (
+                <div className="rounded-xl border border-border bg-muted p-2.5"><EmptyState msg="Sin compras registradas. Agrega la primera." /></div>
+            ) : vista === 'tarjetas' ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                    {items.map((i, idx) => {
+                        const { sub } = itemView(i);
+                        return (
+                            <ProductCard key={i.id}
+                                index={idx}
+                                title={i.producto}
+                                meta={`${i.cantidad} ${i.unidad}`}
+                                value={`$${fmt(sub)}`}
+                                actions={!readOnly && (
+                                    <>
+                                        <EditBtn onClick={() => startEdit(i)} />
+                                        <DeleteBtn onClick={() => del(i.id)} />
+                                    </>
+                                )}
+                            />
+                        );
+                    })}
+                </div>
+            ) : (
+                <div className="rounded-xl border border-border bg-muted p-2.5 space-y-2.5">
+                    {items.map(i => {
+                        const { line } = itemView(i);
                         return (
                             <ItemRow key={i.id}
                                 title={i.producto}
@@ -471,9 +502,9 @@ function ComprasTab({ viajeId, readOnly, titulo, divisasVersion, tasaTraslado, o
                                 onDelete={!readOnly ? () => del(i.id) : null}
                             />
                         );
-                    })
-                }
-            </div>
+                    })}
+                </div>
+            )}
         </div>
     );
 }
