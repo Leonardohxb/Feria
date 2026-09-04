@@ -33,6 +33,10 @@ E2e tests (`tests/feria-e2e.spec.js`) need `TEST_USER_EMAIL`/`TEST_USER_PASSWORD
 
 **`app/dashboard/viajes/[id]/page.js` is intentionally a large single file**: the phase indicator/summary and every phase's tab (`DivisasPanel`, `ComprasTab`, `CostosTab`, `VentasTab`, `ResumenTab`, `FaseStepper`, `useFaseResumen`) are co-located components in that one file, following the existing convention — don't split it apart unprompted. Cross-page reusable UI (used by both this page and `app/dashboard/inventario/page.js`) lives instead in `app/dashboard/_components/` (e.g. `ViewToggle`/`useViewPreference`, `ProductCard`) — that's the newer convention for anything shared across routes.
 
+**Theme:** `app/globals.css` defines a "premium" green-accented theme (oklch, `--primary` ~`oklch(0.55 0.18 160)`) with a glassmorphism visual language (`backdrop-blur`, translucent `bg-card/60`, soft shadows, larger radii) — this replaced an earlier fully-neutral/monochrome theme, so don't assume zero-saturation colors when styling new UI. Font is Plus Jakarta Sans (`--font-sans`, loaded in `app/layout.js`).
+
+**Per-product icons:** `ProductCard.js` maps a product's name to an icon via `getProductIcon()` — custom inline SVGs for a few products (tomato, onion, chili), `lucide-react` icons for general categories, and two icons rendered from PNG assets in `public/` (`lechuga.png`, `pimienta-alternativa.png`) masked with `currentColor` so they tint like the SVG icons. Add new products to `getProductIcon()`'s name-matching rather than inventing a separate icon path.
+
 **Auth:** `context/AuthContext.js` wraps the app, holds the Supabase session + `profiles` row, and client-side redirects unauthenticated users away from any route not in its `PUBLIC_ROUTES` list — add new public routes there, not via middleware.
 
 **Design docs:** `docs/superpowers/specs/` and `docs/superpowers/plans/` hold the design specs and implementation plans written before past features (brainstorming → writing-plans workflow). Check there for the rationale behind existing behavior before changing it — a spec usually explains *why*, not just *what*.

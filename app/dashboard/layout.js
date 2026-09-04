@@ -1,5 +1,5 @@
 'use client';
-import { Sprout, Sun, Moon } from 'lucide-react';
+import { Sprout, Sun, Moon, LayoutDashboard, PlusCircle, Package } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useRouter, usePathname } from 'next/navigation';
@@ -7,13 +7,13 @@ import { useRouter, usePathname } from 'next/navigation';
 export default function DashboardLayout({ children }) {
     const { user, profile, signOut, loading } = useAuth();
     const { dark, toggle } = useTheme();
-    const router   = useRouter();
+    const router = useRouter();
     const pathname = usePathname();
 
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background">
-                <div className="w-7 h-7 rounded-full border-[3px] border-stone-200 border-t-foreground animate-spin" />
+                <div className="w-8 h-8 rounded-full border-[3px] border-secondary border-t-primary animate-spin" />
             </div>
         );
     }
@@ -22,81 +22,80 @@ export default function DashboardLayout({ children }) {
         ? profile.full_name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
         : (user?.email?.[0] ?? '?').toUpperCase();
 
-    const isNewViaje = pathname === '/dashboard/viajes/nuevo';
+    const navItems = [
+        { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, exact: true },
+        { name: 'Nuevo Viaje', path: '/dashboard/viajes/nuevo', icon: PlusCircle },
+        { name: 'Inventario', path: '/dashboard/inventario', icon: Package },
+    ];
 
     return (
-        <div className="min-h-screen flex flex-col bg-background">
-            {/* Header */}
-            <header className="bg-card border-b border-stone-200 dark:border-slate-700 sticky top-0 z-10">
-                <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
+        <div className="min-h-screen flex flex-col bg-background relative selection:bg-primary/20">
+            {/* Ambient Background Glow */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-64 bg-primary/10 rounded-full blur-[100px] pointer-events-none -z-10" />
 
-                    {/* Logo */}
+            {/* Premium Glass Header */}
+            <header className="sticky top-4 z-50 max-w-5xl mx-auto w-full px-4 sm:px-6">
+                <div className="bg-card/70 backdrop-blur-xl border border-border shadow-sm rounded-2xl h-16 flex items-center justify-between px-4 gap-4 transition-all duration-300">
+
+                    {/* Brand / Logo */}
                     <button
                         onClick={() => router.push('/dashboard')}
-                        className="flex items-center gap-2.5 hover:opacity-80 transition-opacity shrink-0"
+                        className="flex items-center gap-3 hover:opacity-80 transition-opacity shrink-0 group"
                     >
-                        <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
-                            <Sprout className="w-4 h-4 text-primary-foreground" strokeWidth={2} />
+                        <div className="w-8 h-8 bg-gradient-to-tr from-[#022c22] to-primary-dark rounded-xl flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-300 ring-1 ring-white/10">
+                            <Sprout className="w-4 h-4 text-primary-foreground" strokeWidth={2.5} />
                         </div>
-                        <span className="font-semibold text-stone-800 dark:text-slate-200 text-sm hidden sm:block tracking-tight">
+                        <span className="font-bold text-foreground text-sm tracking-tight hidden sm:block">
                             kropflow
                         </span>
                     </button>
 
-                    {/* Nav */}
-                    <nav className="flex items-center gap-1">
-                        <button
-                            onClick={() => router.push('/dashboard')}
-                            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                                pathname === '/dashboard'
-                                    ? 'text-foreground bg-secondary'
-                                    : 'text-stone-600 dark:text-slate-400 hover:text-stone-900 dark:hover:text-slate-100 hover:bg-stone-100 dark:hover:bg-slate-700'
-                            }`}
-                        >
-                            Mis viajes
-                        </button>
-                        <button
-                            onClick={() => router.push('/dashboard/viajes/nuevo')}
-                            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                                isNewViaje
-                                    ? 'text-foreground bg-secondary'
-                                    : 'text-stone-600 dark:text-slate-400 hover:text-stone-900 dark:hover:text-slate-100 hover:bg-stone-100 dark:hover:bg-slate-700'
-                            }`}
-                        >
-                            + Nuevo
-                        </button>
-                        <button
-                            onClick={() => router.push('/dashboard/inventario')}
-                            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                                pathname === '/dashboard/inventario'
-                                    ? 'text-foreground bg-secondary'
-                                    : 'text-stone-600 dark:text-slate-400 hover:text-stone-900 dark:hover:text-slate-100 hover:bg-stone-100 dark:hover:bg-slate-700'
-                            }`}
-                        >
-                            Inventario
-                        </button>
+                    {/* Navigation */}
+                    <nav className="flex items-center gap-1.5 p-1 rounded-xl bg-background/50 border border-border/50">
+                        {navItems.map((item) => {
+                            const isActive = item.exact ? pathname === item.path : pathname.startsWith(item.path);
+                            const Icon = item.icon;
+
+                            return (
+                                <button
+                                    key={item.path}
+                                    onClick={() => router.push(item.path)}
+                                    className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${isActive
+                                        ? 'text-primary-foreground bg-primary shadow-md'
+                                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                                        }`}
+                                >
+                                    <Icon className="w-4 h-4" strokeWidth={isActive ? 2.5 : 2} />
+                                    <span className="hidden sm:inline">{item.name}</span>
+                                </button>
+                            );
+                        })}
                     </nav>
 
-                    {/* User */}
-                    <div className="flex items-center gap-2.5 shrink-0">
-                        <div className="hidden sm:flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full bg-muted border border-border flex items-center justify-center">
-                                <span className="text-xs font-semibold text-foreground">{initials}</span>
-                            </div>
-                            <span className="text-sm text-stone-600 dark:text-slate-400 max-w-[120px] truncate">
-                                {profile?.full_name?.split(' ')[0] ?? user?.email}
-                            </span>
-                        </div>
+                    {/* User & Actions */}
+                    <div className="flex items-center gap-3 shrink-0">
                         <button
                             onClick={toggle}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors border border-stone-200 dark:border-slate-700"
+                            className="w-9 h-9 flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors border border-transparent hover:border-border"
                             title={dark ? 'Modo claro' : 'Modo oscuro'}
                         >
                             {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                         </button>
+
+                        <div className="hidden sm:flex items-center gap-2 pr-3 border-r border-border">
+                            <div className="text-right">
+                                <p className="text-sm font-medium text-foreground leading-none">
+                                    {profile?.full_name?.split(' ')[0] ?? user?.email?.split('@')[0]}
+                                </p>
+                            </div>
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-secondary to-muted border border-border flex items-center justify-center shadow-inner">
+                                <span className="text-xs font-bold text-foreground">{initials}</span>
+                            </div>
+                        </div>
+
                         <button
                             onClick={signOut}
-                            className="text-xs font-medium text-stone-500 hover:text-red-600 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition-colors border border-stone-200 dark:border-slate-700 hover:border-red-200"
+                            className="text-xs font-semibold text-muted-foreground hover:text-red-500 hover:bg-red-500/10 px-3 py-2 rounded-xl transition-colors border border-transparent hover:border-red-500/20"
                         >
                             Salir
                         </button>
@@ -104,13 +103,14 @@ export default function DashboardLayout({ children }) {
                 </div>
             </header>
 
-            {/* Content */}
-            <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-8">
+            {/* Main Content Area */}
+            <main className="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-6 py-10 relative z-0 animate-fade-in">
                 {children}
             </main>
 
-            <footer className="text-center text-xs text-stone-400 dark:text-slate-500 py-4 border-t border-stone-100 dark:border-slate-800">
-                © {new Date().getFullYear()} kropflow
+            {/* Footer */}
+            <footer className="text-center text-xs font-medium text-muted-foreground py-6 border-t border-border mt-auto">
+                © {new Date().getFullYear()} Kropflow — Next-Gen logistics.
             </footer>
         </div>
     );

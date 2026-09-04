@@ -9,10 +9,10 @@ import ProductCard from '@/app/dashboard/_components/ProductCard';
 import supabase from '@/lib/supabaseClient';
 import { useAuth } from '@/context/AuthContext';
 
-const UNIDADES    = ['kg', 'caja', 'unidad', 'saco', 'paca', 'otro'];
+const UNIDADES = ['kg', 'caja', 'unidad', 'saco', 'paca', 'otro'];
 const TIPOS_COSTO = ['administracion', 'obreros', 'comida', 'hotel', 'gasolina', 'gasoil', 'transporte', 'otro'];
-const TIPO_ICON   = { administracion: ClipboardList, obreros: HardHat, comida: Utensils, hotel: BedDouble, gasolina: Fuel, gasoil: Droplet, transporte: Truck, otro: Tag };
-const TIPO_LABEL  = t => t.charAt(0).toUpperCase() + t.slice(1);
+const TIPO_ICON = { administracion: ClipboardList, obreros: HardHat, comida: Utensils, hotel: BedDouble, gasolina: Fuel, gasoil: Droplet, transporte: Truck, otro: Tag };
+const TIPO_LABEL = t => t.charAt(0).toUpperCase() + t.slice(1);
 
 function fmt(n) {
     return Number(n ?? 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -24,21 +24,29 @@ function fmtDate(d) { return new Date(d + 'T00:00:00').toLocaleDateString('es-VE
 
 function Spinner() {
     return (
-        <div className="py-10 flex justify-center">
-            <div className="w-6 h-6 rounded-full border-[3px] border-stone-200 border-t-foreground animate-spin" />
+        <div className="py-20 flex flex-col items-center justify-center space-y-4 animate-fade-in">
+            <div className="w-10 h-10 rounded-full border-4 border-primary/20 border-t-primary shadow-sm animate-spin" />
+            <p className="text-sm font-medium text-muted-foreground animate-pulse">Cargando detalles...</p>
         </div>
     );
 }
 
-function EmptyState({ msg }) {
-    return <p className="py-6 text-center text-sm text-stone-400 dark:text-slate-500">{msg}</p>;
+function EmptyState({ msg, icon: Icon = ClipboardList }) {
+    return (
+        <div className="py-12 bg-card/40 backdrop-blur-xl border border-transparent rounded-[24px] text-center shadow-none ring-1 ring-border border-dashed animate-fade-in flex flex-col justify-center items-center">
+            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-4 text-primary shadow-sm transform transition-transform hover:scale-110">
+                <Icon className="w-8 h-8" />
+            </div>
+            <p className="text-sm font-medium text-muted-foreground text-balance max-w-[250px]">{msg}</p>
+        </div>
+    );
 }
 
 function DeleteBtn({ onClick }) {
     return (
         <button
             onClick={onClick}
-            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-md text-stone-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl bg-muted/50 text-muted-foreground hover:text-red-600 hover:bg-red-500/10 hover:shadow-sm border border-transparent hover:border-red-500/20 transition-all"
             title="Eliminar"
         >
             <X className="w-4 h-4" />
@@ -50,7 +58,7 @@ function EditBtn({ onClick }) {
     return (
         <button
             onClick={onClick}
-            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-md text-stone-300 hover:text-foreground hover:bg-muted transition-colors"
+            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl bg-muted/50 text-muted-foreground hover:text-primary hover:bg-primary/10 hover:shadow-sm border border-transparent hover:border-primary/20 transition-all"
             title="Editar"
         >
             <Pencil className="w-3.5 h-3.5" />
@@ -63,13 +71,12 @@ function AddButton({ onClick, open }) {
     return (
         <button
             onClick={onClick}
-            className={`text-sm font-medium px-3 py-1.5 rounded-lg border transition-colors ${
-                open
-                    ? 'border-stone-200 text-stone-500 hover:bg-stone-50'
-                    : 'border-foreground/30 text-foreground hover:bg-muted'
-            }`}
+            className={`text-sm font-semibold px-4 py-2 rounded-xl border transition-all shadow-sm flex items-center gap-2 ${open
+                ? 'border-border bg-secondary text-foreground hover:bg-secondary/80'
+                : 'border-transparent bg-primary text-primary-foreground hover:bg-primary-dark shadow-primary/20 hover:-translate-y-0.5'
+                }`}
         >
-            {open ? 'Cancelar' : '+ Agregar'}
+            {open ? 'Cancelar' : <><ClipboardList className="w-4 h-4" /> Agregar</>}
         </button>
     );
 }
@@ -77,14 +84,23 @@ function AddButton({ onClick, open }) {
 /* ── Item row ───────────────────────────────────────────── */
 function ItemRow({ title, line, date, note, onEdit, onDelete }) {
     return (
-        <div className="card py-3 px-4 flex items-center gap-3 group hover:border-ring transition-colors">
-            <p className="text-sm font-medium text-stone-800 dark:text-slate-200 flex-1 min-w-0 truncate">{title}</p>
+        <div className="bg-card/60 backdrop-blur-xl border border-border shadow-sm rounded-2xl py-3 px-4 flex items-center gap-4 group hover:border-primary/30 transition-all hover:shadow-md">
+            <div className="flex-1 min-w-0 pr-2">
+                <p className="text-base font-bold text-foreground truncate group-hover:text-primary transition-colors">{title}</p>
+                <div className="flex items-center gap-1.5 mt-0.5 opacity-80">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest bg-secondary px-2 py-0.5 rounded flex items-center gap-1">
+                        {date}
+                    </p>
+                    {note && <p className="text-xs text-muted-foreground truncate flex-1">— {note}</p>}
+                </div>
+            </div>
             <div className="text-right shrink-0">
-                <p className="text-xs text-stone-600 dark:text-slate-300 tabular">{line}</p>
-                <p className="text-xs text-stone-400 dark:text-slate-500 mt-0.5">{date}{note ? ` · ${note}` : ''}</p>
+                <p className="text-sm font-black tabular flex flex-col justify-end">
+                    {line}
+                </p>
             </div>
             {(onEdit || onDelete) && (
-                <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
                     {onEdit && <EditBtn onClick={onEdit} />}
                     {onDelete && <DeleteBtn onClick={onDelete} />}
                 </div>
@@ -96,13 +112,16 @@ function ItemRow({ title, line, date, note, onEdit, onDelete }) {
 /* ── Section total badge ─────────────────────────────────── */
 function SectionHeader({ titulo, count, total, color, children }) {
     return (
-        <div className="flex items-center justify-between gap-3">
-            <div className="flex items-baseline gap-2.5 min-w-0">
-                <h2 className="text-sm font-semibold text-stone-500 dark:text-slate-400 uppercase tracking-wider shrink-0">{titulo}</h2>
-                <span className="text-xs text-stone-400 dark:text-slate-500 whitespace-nowrap">{count} registro{count !== 1 ? 's' : ''}</span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/30 p-2 rounded-2xl border border-transparent">
+            <div className="flex items-baseline gap-3 min-w-0 px-2 lg:px-0">
+                <h2 className="text-base font-black text-foreground uppercase tracking-widest shrink-0">{titulo}</h2>
+                <span className="text-[10px] font-bold text-muted-foreground bg-border px-2 py-0.5 rounded-full uppercase tracking-wider">{count} registro{count !== 1 ? 's' : ''}</span>
             </div>
-            <div className="flex items-center gap-3 shrink-0">
-                <span className={`text-sm font-semibold tabular ${color}`}>${fmt(total)}</span>
+            <div className="flex items-center gap-4 shrink-0">
+                <div className="hidden sm:flex flex-col text-right">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Total</span>
+                    <span className={`text-base font-black tabular leading-none ${color}`}>${fmt(total)}</span>
+                </div>
                 {children}
             </div>
         </div>
@@ -180,8 +199,8 @@ function useMaterialesViaje(viajeId, tasaTraslado) {
 /* ── Select de producto, con opción de crear uno nuevo ────── */
 function ProductoField({ value, onChange, productos, onCreated, userId, permitirCrear = true }) {
     const [creating, setCreating] = useState(false);
-    const [newName,  setNewName]  = useState('');
-    const [error,    setError]    = useState('');
+    const [newName, setNewName] = useState('');
+    const [error, setError] = useState('');
 
     async function handleCreate() {
         const nombre = newName.trim();
@@ -250,8 +269,8 @@ function useCostoTipos() {
    usuario, sin duplicar por nombre. */
 function TipoCostoField({ value, onChange, tipos, onCreated, userId }) {
     const [creating, setCreating] = useState(false);
-    const [newName,  setNewName]  = useState('');
-    const [error,    setError]    = useState('');
+    const [newName, setNewName] = useState('');
+    const [error, setError] = useState('');
 
     // Custom que no chocan con los predeterminados
     const customUnicos = tipos
@@ -323,13 +342,13 @@ function InlineForm({ children, onSubmit, saving, label }) {
 
 /* ── Compras Tab ────────────────────────────────────────── */
 function ComprasTab({ viajeId, readOnly, titulo, divisasVersion, tasaTraslado, onTasaChange }) {
-    const [items,    setItems]    = useState([]);
-    const [divisas,  setDivisas]  = useState([]);
-    const [loading,  setLoading]  = useState(true);
+    const [items, setItems] = useState([]);
+    const [divisas, setDivisas] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
-    const [saving,   setSaving]   = useState(false);
-    const [editId,   setEditId]   = useState(null);
-    const [tasa,     setTasa]     = useState('');
+    const [saving, setSaving] = useState(false);
+    const [editId, setEditId] = useState(null);
+    const [tasa, setTasa] = useState('');
     const EMPTY = { producto: '', cantidad: '', unidad: 'kg', precio_unitario: '', divisa_id: '', fecha: today(), notas: '' };
     const [form, setForm] = useState(EMPTY);
     const { productos, reload: reloadProductos, userId } = useProductos();
@@ -347,7 +366,7 @@ function ComprasTab({ viajeId, readOnly, titulo, divisasVersion, tasaTraslado, o
             const nuevo = (!isNaN(valor) && valor > 0) ? valor : null;
             supabase.from('viajes').update({ traslado_tasa_por_kg: nuevo }).eq('id', viajeId).then(() => onTasaChange?.(nuevo));
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const load = useCallback(async () => {
@@ -363,12 +382,12 @@ function ComprasTab({ viajeId, readOnly, titulo, divisasVersion, tasaTraslado, o
     useEffect(() => { load(); }, [load, divisasVersion]);
 
     const baseDivisa = divisas.find(d => d.es_base) ?? divisas[0];
-    const divisaSel  = divisas.find(d => d.id === (form.divisa_id || baseDivisa?.id)) ?? baseDivisa;
-    const tasaNum    = Number(tasa) || 0;
+    const divisaSel = divisas.find(d => d.id === (form.divisa_id || baseDivisa?.id)) ?? baseDivisa;
+    const tasaNum = Number(tasa) || 0;
 
     function sf(k) { return e => setForm(f => ({ ...f, [k]: e.target.value })); }
     function resetForm() { setForm({ ...EMPTY, divisa_id: baseDivisa?.id ?? '' }); setEditId(null); setShowForm(false); }
-    function openForm()  { setForm({ ...EMPTY, divisa_id: baseDivisa?.id ?? '' }); setEditId(null); setShowForm(true); }
+    function openForm() { setForm({ ...EMPTY, divisa_id: baseDivisa?.id ?? '' }); setEditId(null); setShowForm(true); }
     function startEdit(i) {
         setForm({ producto: i.producto, cantidad: String(i.cantidad), unidad: i.unidad, precio_unitario: String(i.precio_unitario), divisa_id: i.divisa_id ?? baseDivisa?.id ?? '', fecha: i.fecha, notas: i.notas ?? '' });
         setEditId(i.id);
@@ -386,7 +405,7 @@ function ComprasTab({ viajeId, readOnly, titulo, divisasVersion, tasaTraslado, o
             fecha: form.fecha, notas: form.notas || null,
         };
         if (editId) await supabase.from('compras').update(payload).eq('id', editId);
-        else        await supabase.from('compras').insert(payload);
+        else await supabase.from('compras').insert(payload);
         setSaving(false);
         resetForm();
         load();
@@ -511,11 +530,11 @@ function ComprasTab({ viajeId, readOnly, titulo, divisasVersion, tasaTraslado, o
 
 /* ── Ventas Tab ─────────────────────────────────────────── */
 function VentasTab({ viajeId, readOnly, titulo, tasaTraslado }) {
-    const [items,    setItems]    = useState([]);
-    const [loading,  setLoading]  = useState(true);
+    const [items, setItems] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
-    const [saving,   setSaving]   = useState(false);
-    const [editId,   setEditId]   = useState(null);
+    const [saving, setSaving] = useState(false);
+    const [editId, setEditId] = useState(null);
     const EMPTY = { producto: '', cantidad: '', unidad: 'kg', total_recibido: '', fecha: today(), notas: '' };
     const [form, setForm] = useState(EMPTY);
     const { materiales, reload: reloadMateriales, userId } = useMaterialesViaje(viajeId, tasaTraslado);
@@ -552,7 +571,7 @@ function VentasTab({ viajeId, readOnly, titulo, tasaTraslado }) {
             fecha: form.fecha, notas: form.notas || null,
         };
         if (editId) await supabase.from('ventas').update(payload).eq('id', editId);
-        else        await supabase.from('ventas').insert(payload);
+        else await supabase.from('ventas').insert(payload);
         setSaving(false);
         resetForm();
         load();
@@ -579,7 +598,7 @@ function VentasTab({ viajeId, readOnly, titulo, tasaTraslado }) {
                                 ...f,
                                 producto: v,
                                 cantidad: mat ? String(mat.cantidad) : f.cantidad,
-                                unidad:   mat ? mat.unidad          : f.unidad,
+                                unidad: mat ? mat.unidad : f.unidad,
                             }));
                         }}
                         productos={materiales} userId={userId}
@@ -613,19 +632,19 @@ function VentasTab({ viajeId, readOnly, titulo, tasaTraslado }) {
             <div className="rounded-xl border border-border bg-muted p-2.5 space-y-2.5">
                 {loading ? <Spinner />
                     : items.length === 0 ? <EmptyState msg="Sin ventas registradas. Agrega la primera." />
-                    : items.map(i => {
-                        const t = ventaTotal(i.cantidad, i.precio_unitario, i.total_real);
-                        return (
-                            <ItemRow key={i.id}
-                                title={i.producto}
-                                line={`${Number(i.cantidad)} ${i.unidad} · $${fmt(t)}`}
-                                date={fmtDate(i.fecha)}
-                                note={i.notas}
-                                onEdit={!readOnly ? () => startEdit(i) : null}
-                                onDelete={!readOnly ? () => del(i.id) : null}
-                            />
-                        );
-                    })
+                        : items.map(i => {
+                            const t = ventaTotal(i.cantidad, i.precio_unitario, i.total_real);
+                            return (
+                                <ItemRow key={i.id}
+                                    title={i.producto}
+                                    line={`${Number(i.cantidad)} ${i.unidad} · $${fmt(t)}`}
+                                    date={fmtDate(i.fecha)}
+                                    note={i.notas}
+                                    onEdit={!readOnly ? () => startEdit(i) : null}
+                                    onDelete={!readOnly ? () => del(i.id) : null}
+                                />
+                            );
+                        })
                 }
             </div>
         </div>
@@ -634,12 +653,12 @@ function VentasTab({ viajeId, readOnly, titulo, tasaTraslado }) {
 
 /* ── Costos Tab ─────────────────────────────────────────── */
 function CostosTab({ viajeId, readOnly, titulo, divisasVersion }) {
-    const [items,    setItems]    = useState([]);
-    const [divisas,  setDivisas]  = useState([]);
-    const [loading,  setLoading]  = useState(true);
+    const [items, setItems] = useState([]);
+    const [divisas, setDivisas] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
-    const [saving,   setSaving]   = useState(false);
-    const [editId,   setEditId]   = useState(null);
+    const [saving, setSaving] = useState(false);
+    const [editId, setEditId] = useState(null);
     const EMPTY = { tipo: 'obreros', descripcion: '', monto: '', divisa_id: '', fecha: today() };
     const [form, setForm] = useState(EMPTY);
     const { tipos, reload: reloadTipos, userId } = useCostoTipos();
@@ -657,11 +676,11 @@ function CostosTab({ viajeId, readOnly, titulo, divisasVersion }) {
     useEffect(() => { load(); }, [load, divisasVersion]);
 
     const baseDivisa = divisas.find(d => d.es_base) ?? divisas[0];
-    const divisaSel  = divisas.find(d => d.id === (form.divisa_id || baseDivisa?.id)) ?? baseDivisa;
+    const divisaSel = divisas.find(d => d.id === (form.divisa_id || baseDivisa?.id)) ?? baseDivisa;
 
     function sf(k) { return e => setForm(f => ({ ...f, [k]: e.target.value })); }
     function resetForm() { setForm({ ...EMPTY, divisa_id: baseDivisa?.id ?? '' }); setEditId(null); setShowForm(false); }
-    function openForm()  { setForm({ ...EMPTY, divisa_id: baseDivisa?.id ?? '' }); setEditId(null); setShowForm(true); }
+    function openForm() { setForm({ ...EMPTY, divisa_id: baseDivisa?.id ?? '' }); setEditId(null); setShowForm(true); }
     function startEdit(i) {
         setForm({ tipo: i.tipo, descripcion: i.descripcion, monto: String(i.monto), divisa_id: i.divisa_id ?? baseDivisa?.id ?? '', fecha: i.fecha });
         setEditId(i.id);
@@ -678,7 +697,7 @@ function CostosTab({ viajeId, readOnly, titulo, divisasVersion }) {
             fecha: form.fecha,
         };
         if (editId) await supabase.from('costos_adicionales').update(payload).eq('id', editId);
-        else        await supabase.from('costos_adicionales').insert(payload);
+        else await supabase.from('costos_adicionales').insert(payload);
         setSaving(false);
         resetForm();
         load();
@@ -714,22 +733,22 @@ function CostosTab({ viajeId, readOnly, titulo, divisasVersion }) {
             <div className="rounded-xl border border-border bg-muted p-2.5 space-y-2.5">
                 {loading ? <Spinner />
                     : items.length === 0 ? <EmptyState msg="Sin costos adicionales. Agrega el primero." />
-                    : items.map(i => {
-                        const Icon = TIPO_ICON[i.tipo] ?? Tag;
-                        const d = i.viaje_divisas ?? { codigo: 'USD', tasa: 1, es_base: true };
-                        const line = d.es_base
-                            ? `${TIPO_LABEL(i.tipo)} · $${fmt(i.monto)}`
-                            : `${TIPO_LABEL(i.tipo)} · ${d.codigo} ${fmt(i.monto)} · ≈ $${fmt(montoUsd(1, i.monto, d.tasa))}`;
-                        return (
-                        <ItemRow key={i.id}
-                            title={<span className="inline-flex items-center gap-1.5"><Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" /> {i.descripcion || TIPO_LABEL(i.tipo)}</span>}
-                            line={line}
-                            date={fmtDate(i.fecha)}
-                            onEdit={!readOnly ? () => startEdit(i) : null}
-                            onDelete={!readOnly ? () => del(i.id) : null}
-                        />
-                        );
-                    })
+                        : items.map(i => {
+                            const Icon = TIPO_ICON[i.tipo] ?? Tag;
+                            const d = i.viaje_divisas ?? { codigo: 'USD', tasa: 1, es_base: true };
+                            const line = d.es_base
+                                ? `${TIPO_LABEL(i.tipo)} · $${fmt(i.monto)}`
+                                : `${TIPO_LABEL(i.tipo)} · ${d.codigo} ${fmt(i.monto)} · ≈ $${fmt(montoUsd(1, i.monto, d.tasa))}`;
+                            return (
+                                <ItemRow key={i.id}
+                                    title={<span className="inline-flex items-center gap-1.5"><Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" /> {i.descripcion || TIPO_LABEL(i.tipo)}</span>}
+                                    line={line}
+                                    date={fmtDate(i.fecha)}
+                                    onEdit={!readOnly ? () => startEdit(i) : null}
+                                    onDelete={!readOnly ? () => del(i.id) : null}
+                                />
+                            );
+                        })
                 }
             </div>
         </div>
@@ -738,7 +757,7 @@ function CostosTab({ viajeId, readOnly, titulo, divisasVersion }) {
 
 /* ── Resumen Tab ────────────────────────────────────────── */
 function ResumenTab({ viajeId, tasaTraslado }) {
-    const [data,    setData]    = useState(null);
+    const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -756,14 +775,14 @@ function ResumenTab({ viajeId, tasaTraslado }) {
                 const porKg = i.unidad === 'kg' ? costoFinalPorKg(precioUsd, tasa) : precioUsd;
                 return s + Number(i.cantidad) * porKg;
             }, 0);
-            const totalVentas  = ventas.reduce((s, i) => s + ventaTotal(i.cantidad, i.precio_unitario, i.total_real), 0);
-            const totalCostos  = (kR.data ?? []).reduce((s, i) => s + montoUsd(1, i.monto, i.viaje_divisas?.tasa ?? 1), 0);
+            const totalVentas = ventas.reduce((s, i) => s + ventaTotal(i.cantidad, i.precio_unitario, i.total_real), 0);
+            const totalCostos = (kR.data ?? []).reduce((s, i) => s + montoUsd(1, i.monto, i.viaje_divisas?.tasa ?? 1), 0);
 
             // Sobrante por producto: comprado vs vendido (por nombre de producto)
             const prod = {};
             const ensure = (nombre, unidad) => (prod[nombre] ??= { nombre, unidad, comprado: 0, vendido: 0 });
             compras.forEach(i => { ensure(i.producto, i.unidad).comprado += Number(i.cantidad); });
-            ventas.forEach(i  => { const p = ensure(i.producto, i.unidad); p.vendido += Number(i.cantidad); if (!p.unidad) p.unidad = i.unidad; });
+            ventas.forEach(i => { const p = ensure(i.producto, i.unidad); p.vendido += Number(i.cantidad); if (!p.unidad) p.unidad = i.unidad; });
             const sobrantes = Object.values(prod).sort((a, b) => a.nombre.localeCompare(b.nombre));
 
             setData({ totalCompras, totalVentas, totalCostos, sobrantes });
@@ -776,7 +795,7 @@ function ResumenTab({ viajeId, tasaTraslado }) {
 
     const { totalCompras, totalVentas, totalCostos, sobrantes } = data;
     const bruta = totalVentas - totalCompras;
-    const neta  = bruta - totalCostos;
+    const neta = bruta - totalCostos;
 
     const noData = totalVentas === 0 && totalCompras === 0 && totalCostos === 0;
 
@@ -805,12 +824,12 @@ function ResumenTab({ viajeId, tasaTraslado }) {
                     <p className="text-xs font-semibold text-stone-500 dark:text-slate-400 uppercase tracking-wider">Cálculo de ganancia</p>
                 </div>
                 <div className="divide-y divide-stone-100 dark:divide-slate-700">
-                    <Row label="Ingresos por ventas"  value={`+ $${fmt(totalVentas)}`}  color="text-foreground" />
-                    <Row label="Costo de compras"      value={`− $${fmt(totalCompras)}`} color="text-foreground" />
+                    <Row label="Ingresos por ventas" value={`+ $${fmt(totalVentas)}`} color="text-foreground" />
+                    <Row label="Costo de compras" value={`− $${fmt(totalCompras)}`} color="text-foreground" />
                     <Row label="Ganancia bruta" bold
                         value={(bruta >= 0 ? '+ ' : '− ') + `$${fmt(Math.abs(bruta))}`}
                         color={bruta >= 0 ? 'text-foreground' : 'text-red-600 dark:text-red-400'} />
-                    <Row label="Costos adicionales"   value={`− $${fmt(totalCostos)}`}  color="text-foreground" />
+                    <Row label="Costos adicionales" value={`− $${fmt(totalCostos)}`} color="text-foreground" />
                     <div className="px-4 py-4 bg-stone-50 dark:bg-slate-800">
                         <div className="flex items-center justify-between">
                             <p className="text-sm font-semibold text-stone-900 dark:text-slate-100">Ganancia neta</p>
@@ -894,9 +913,9 @@ function Row({ label, value, color, bold }) {
 function DivisasPanel({ viajeId, readOnly, onChange }) {
     const [divisas, setDivisas] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [adding,  setAdding]  = useState(false);
-    const [nueva,   setNueva]   = useState({ codigo: '', tasa: '' });
-    const [editId,  setEditId]  = useState(null);
+    const [adding, setAdding] = useState(false);
+    const [nueva, setNueva] = useState({ codigo: '', tasa: '' });
+    const [editId, setEditId] = useState(null);
     const [editVal, setEditVal] = useState({ codigo: '', tasa: '' });
 
     const load = useCallback(async () => {
@@ -1087,7 +1106,7 @@ function useFaseResumen(viaje, refreshKey) {
    `resumen` es el valor devuelto por useFaseResumen (null = cargando). */
 function FaseResumen({ fase, resumen }) {
     const count = fase === 'ventas' ? 2 : 3;
-    const cols  = count === 2 ? 'grid-cols-2' : 'grid-cols-3';
+    const cols = count === 2 ? 'grid-cols-2' : 'grid-cols-3';
     const items = resumen?.items ?? Array.from({ length: count }, () => null);
 
     return (
@@ -1115,36 +1134,45 @@ function FaseResumen({ fase, resumen }) {
 function FaseStepper({ fase }) {
     const steps = stepperState(fase);
     return (
-        <div className="flex items-center pb-3 border-b border-stone-200 dark:border-slate-700">
-            {steps.map((s, i) => (
-                <div key={s.fase} className="flex items-center flex-1 last:flex-none">
-                    <div className="flex items-center gap-2 shrink-0">
-                        <span className={`fase-step-node fase-step-${s.status}`}>
-                            {s.status === 'done' ? <Check className="w-3.5 h-3.5" /> : i + 1}
-                        </span>
-                        <span className={`text-sm whitespace-nowrap ${
-                            s.status === 'pending' ? 'text-stone-400 dark:text-slate-500' : 'text-foreground'
-                        } ${s.status === 'current' ? 'font-medium' : ''}`}>
-                            {s.label}
-                        </span>
+        <div className="flex items-center pb-4 border-b border-border/40 overflow-x-auto overflow-y-hidden my-4 hide-scrollbar">
+            {steps.map((s, i) => {
+                const isCurrent = s.status === 'current';
+                const isDone = s.status === 'done';
+                const isPending = s.status === 'pending';
+                return (
+                    <div key={s.fase} className="flex items-center flex-1 last:flex-none min-w-max pr-4 last:pr-0">
+                        <div className={`flex items-center gap-2.5 shrink-0 px-3 py-1.5 rounded-xl transition-all ${isCurrent ? 'bg-primary shadow-sm shadow-primary/20 text-primary-foreground transform scale-105' :
+                                isDone ? 'bg-secondary text-primary' :
+                                    'text-muted-foreground'
+                            }`}>
+                            <span className={`flex items-center justify-center w-5 h-5 rounded-md text-xs font-black ${isCurrent ? 'bg-white/20' :
+                                    isDone ? 'bg-primary/20 text-primary' :
+                                        'bg-muted/80'
+                                }`}>
+                                {isDone ? <Check className="w-3.5 h-3.5" /> : i + 1}
+                            </span>
+                            <span className={`text-sm tracking-wide ${isCurrent ? 'font-bold' : isDone ? 'font-bold' : 'font-semibold opacity-70'}`}>
+                                {s.label}
+                            </span>
+                        </div>
+                        {i < steps.length - 1 && (
+                            <div className={`h-1 w-full min-w-[2rem] mx-2 rounded-full transition-colors ${isDone ? 'bg-primary/40' : 'bg-muted'}`} />
+                        )}
                     </div>
-                    {i < steps.length - 1 && (
-                        <div className={`fase-step-line ${s.status === 'done' ? 'fase-step-line-done' : ''}`} />
-                    )}
-                </div>
-            ))}
+                )
+            })}
         </div>
     );
 }
 
 /* ── Main Page ──────────────────────────────────────────── */
 export default function ViajeDetallePage() {
-    const { id }  = useParams();
-    const router  = useRouter();
-    const [viaje,     setViaje]     = useState(null);
-    const [loading,   setLoading]   = useState(true);
+    const { id } = useParams();
+    const router = useRouter();
+    const [viaje, setViaje] = useState(null);
+    const [loading, setLoading] = useState(true);
     const [advancing, setAdvancing] = useState(false);
-    const [closing,   setClosing]   = useState(false);
+    const [closing, setClosing] = useState(false);
     const [divisasVersion, setDivisasVersion] = useState(0);
     const resumenFase = useFaseResumen(viaje, divisasVersion);
 
@@ -1192,34 +1220,42 @@ export default function ViajeDetallePage() {
     }
 
     const isClosed = viaje.estado === 'cerrado';
-    const vista    = isClosed ? 'resumen' : viaje.fase;
+    const vista = isClosed ? 'resumen' : viaje.fase;
     const cfg = avanceConfig(viaje.fase);
 
     return (
-        <div className="animate-fade-in space-y-5">
+        <div className="animate-fade-in space-y-7 relative selection:bg-primary/20 pb-10">
+
+            {/* Ambient Background */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-xl h-64 bg-primary/10 rounded-full blur-[120px] pointer-events-none -z-10" />
 
             {/* Header */}
-            <div>
+            <div className="relative">
                 <button
                     onClick={() => router.push('/dashboard')}
-                    className="text-xs text-stone-400 dark:text-slate-500 hover:text-stone-700 dark:hover:text-slate-300 transition-colors mb-3 flex items-center gap-1"
+                    className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group mb-4"
                 >
-                    <ArrowLeft className="w-3.5 h-3.5" /> Mis viajes
+                    <div className="p-1 rounded-md group-hover:bg-muted transition-colors">
+                        <ArrowLeft className="w-4 h-4" />
+                    </div>
+                    Volver a Viajes
                 </button>
 
-                <div className="flex items-center gap-2.5 flex-wrap">
-                    <h1 className="text-lg font-semibold text-stone-900 dark:text-slate-100">{viaje.nombre}</h1>
-                    <span className={`badge text-xs ${isClosed ? 'badge-gray' : 'badge-blue'}`}>
-                        {isClosed ? 'Cerrado' : 'Activo'}
-                    </span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0 flex items-center gap-3">
+                        <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight truncate">{viaje.nombre}</h1>
+                        <span className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${isClosed ? 'bg-muted text-muted-foreground' : 'bg-secondary text-primary'}`}>
+                            {isClosed ? 'Cerrado' : 'Activo'}
+                        </span>
+                    </div>
                 </div>
                 {viaje.descripcion && (
-                    <p className="text-sm text-stone-500 dark:text-slate-400 mt-1">{viaje.descripcion}</p>
+                    <p className="text-sm text-muted-foreground mt-2 font-medium">{viaje.descripcion}</p>
                 )}
-                <p className="text-xs text-stone-400 dark:text-slate-500 mt-1">
-                    Inicio: {fmtDate(viaje.fecha_inicio)}
-                    {viaje.fecha_fin && ` · Fin: ${fmtDate(viaje.fecha_fin)}`}
-                </p>
+                <div className="flex items-center gap-2 mt-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                    <span className="bg-secondary/50 px-2 py-1 rounded-md flex items-center gap-1">Inicio: <span className="text-foreground">{fmtDate(viaje.fecha_inicio)}</span></span>
+                    {viaje.fecha_fin && <span className="bg-secondary/50 px-2 py-1 rounded-md flex items-center gap-1">Fin: <span className="text-foreground">{fmtDate(viaje.fecha_fin)}</span></span>}
+                </div>
             </div>
 
             {/* Indicador de fase (una a la vez) */}
@@ -1235,12 +1271,12 @@ export default function ViajeDetallePage() {
                 <div className="space-y-6">
                     <DivisasPanel viajeId={id} readOnly={isClosed} onChange={() => setDivisasVersion(v => v + 1)} />
                     <ComprasTab viajeId={id} readOnly={isClosed} titulo="Compras" divisasVersion={divisasVersion} tasaTraslado={viaje?.traslado_tasa_por_kg} onTasaChange={t => setViaje(v => v ? { ...v, traslado_tasa_por_kg: t } : v)} />
-                    <CostosTab  viajeId={id} readOnly={isClosed} titulo="Costos iniciales" divisasVersion={divisasVersion} />
+                    <CostosTab viajeId={id} readOnly={isClosed} titulo="Costos iniciales" divisasVersion={divisasVersion} />
                 </div>
             )}
             {vista === 'en_curso' && <CostosTab viajeId={id} readOnly={isClosed} titulo="Costos del viaje" divisasVersion={divisasVersion} />}
-            {vista === 'ventas'   && <VentasTab viajeId={id} readOnly={isClosed} titulo="Ventas" tasaTraslado={viaje?.traslado_tasa_por_kg} />}
-            {vista === 'resumen'  && <ResumenTab viajeId={id} tasaTraslado={viaje?.traslado_tasa_por_kg} />}
+            {vista === 'ventas' && <VentasTab viajeId={id} readOnly={isClosed} titulo="Ventas" tasaTraslado={viaje?.traslado_tasa_por_kg} />}
+            {vista === 'resumen' && <ResumenTab viajeId={id} tasaTraslado={viaje?.traslado_tasa_por_kg} />}
 
             {/* Acción de avance / cierre */}
             {!isClosed && cfg && (
