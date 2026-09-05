@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, X, Pencil, Check, ClipboardList, HardHat, Utensils, BedDouble, Fuel, Droplet, Truck, Tag } from 'lucide-react';
-import { avanceConfig, stepperState } from '@/lib/viajeFases.mjs';
+import { avanceConfig, stepperState, fasesAnteriores } from '@/lib/viajeFases.mjs';
 import { montoUsd, costoFinalPorKg, ventaTotal } from '@/lib/divisas.mjs';
 import { ViewToggle, useViewPreference } from '@/app/dashboard/_components/ViewToggle';
 import ProductCard from '@/app/dashboard/_components/ProductCard';
@@ -1182,14 +1182,39 @@ function FaseStepper({ fase }) {
     );
 }
 
+/* ── Control de retroceso de fase ────────────────────────────
+   Solo lista fases anteriores a la actual; retroceder no borra
+   ni oculta datos, solo cambia qué sección se muestra. */
+function VolverFaseControl({ fase, onVolver, disabled }) {
+    const anteriores = fasesAnteriores(fase);
+    if (anteriores.length === 0) return null;
+    return (
+        <div className="flex items-center flex-wrap gap-2 text-xs">
+            <span className="text-muted-foreground font-medium">Volver a:</span>
+            {anteriores.map(f => (
+                <button
+                    key={f.fase}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => onVolver(f.fase, f.label)}
+                    className="px-2.5 py-1 rounded-md border border-border text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+                >
+                    {f.label}
+                </button>
+            ))}
+        </div>
+    );
+}
+
 /* ── Main Page ──────────────────────────────────────────── */
 export default function ViajeDetallePage() {
     const { id } = useParams();
     const router = useRouter();
     const [viaje, setViaje] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [advancing, setAdvancing] = useState(false);
-    const [closing, setClosing] = useState(false);
+    const [advancing,   setAdvancing]   = useState(false);
+    const [closing,     setClosing]     = useState(false);
+    const [retroceding, setRetroceding] = useState(false);
     const [divisasVersion, setDivisasVersion] = useState(0);
     const resumenFase = useFaseResumen(viaje, divisasVersion);
 
@@ -1206,6 +1231,14 @@ export default function ViajeDetallePage() {
         await supabase.from('viajes').update({ fase: cfg.next }).eq('id', id);
         setViaje(v => ({ ...v, fase: cfg.next }));
         setAdvancing(false);
+    }
+
+    async function handleRetroceder(fase, label) {
+        if (!confirm(`¿Volver a la fase "${label}"? Los datos ya cargados (compras, costos, ventas) no se pierden — solo cambia qué sección ves.`)) return;
+        setRetroceding(true);
+        await supabase.from('viajes').update({ fase }).eq('id', id);
+        setViaje(v => ({ ...v, fase }));
+        setRetroceding(false);
     }
 
     async function handleCerrar() {
@@ -1280,6 +1313,7 @@ export default function ViajeDetallePage() {
                 <div className="space-y-3">
                     <FaseStepper fase={viaje.fase} />
                     <FaseResumen fase={viaje.fase} resumen={resumenFase} />
+                    <VolverFaseControl fase={viaje.fase} onVolver={handleRetroceder} disabled={retroceding} />
                 </div>
             )}
 
