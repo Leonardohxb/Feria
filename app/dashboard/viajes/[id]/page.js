@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, X, Pencil, Check, ClipboardList, HardHat, Utensils, BedDouble, Fuel, Droplet, Truck, Tag } from 'lucide-react';
+import { ArrowLeft, X, Pencil, Check, ClipboardList, HardHat, Utensils, BedDouble, Fuel, Droplet, Truck, Tag, Coins } from 'lucide-react';
 import { avanceConfig, stepperState, fasesAnteriores } from '@/lib/viajeFases.mjs';
 import { montoUsd, costoFinalPorKg, ventaTotal } from '@/lib/divisas.mjs';
 import { ViewToggle, useViewPreference } from '@/app/dashboard/_components/ViewToggle';
@@ -544,12 +544,15 @@ function ComprasTab({ viajeId, readOnly, titulo, divisasVersion, tasaTraslado, o
 function VentasTab({ viajeId, readOnly, titulo, tasaTraslado }) {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [showForm, setShowForm] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editId, setEditId] = useState(null);
+    // Nombre del producto cuyo mini-form de venta está expandido (o null si ninguno).
+    const [abierto, setAbierto] = useState(null);
+    // Si se muestra el campo de cantidad (por defecto oculto: se vende todo el restante).
+    const [ajustarCantidad, setAjustarCantidad] = useState(false);
     const EMPTY = { producto: '', cantidad: '', unidad: 'kg', total_recibido: '', fecha: today(), notas: '' };
     const [form, setForm] = useState(EMPTY);
-    const { materiales, reload: reloadMateriales, userId } = useMaterialesViaje(viajeId, tasaTraslado);
+    const { materiales } = useMaterialesViaje(viajeId, tasaTraslado);
 
     const load = useCallback(async () => {
         const { data } = await supabase.from('ventas').select('*').eq('viaje_id', viajeId).order('fecha', { ascending: false });
@@ -560,16 +563,27 @@ function VentasTab({ viajeId, readOnly, titulo, tasaTraslado }) {
     useEffect(() => { load(); }, [load]);
 
     function sf(k) { return e => setForm(f => ({ ...f, [k]: e.target.value })); }
-    function resetForm() { setForm(EMPTY); setEditId(null); setShowForm(false); }
+    function resetForm() { setForm(EMPTY); setEditId(null); setAbierto(null); setAjustarCantidad(false); }
+
+    // Expande el mini-form de un producto comprado, prellenado con su restante.
+    function abrir(m) {
+        setForm({ producto: m.nombre, cantidad: String(m.restante), unidad: m.unidad, total_recibido: '', fecha: today(), notas: '' });
+        setEditId(null);
+        setAbierto(m.nombre);
+        setAjustarCantidad(false);
+    }
+
     function startEdit(i) {
         const t = i.total_real != null ? i.total_real : Number(i.cantidad) * Number(i.precio_unitario);
         setForm({ producto: i.producto, cantidad: String(i.cantidad), unidad: i.unidad, total_recibido: String(t), fecha: i.fecha, notas: i.notas ?? '' });
         setEditId(i.id);
-        setShowForm(true);
+        setAbierto(i.producto);
+        setAjustarCantidad(true);
     }
 
     async function handleSubmit(e) {
         e.preventDefault();
+        if (!form.producto) return;
         const total = Number(form.total_recibido);
         if (!(total > 0)) return;
         const cantidadNum = Number(form.cantidad) || 0;
@@ -596,52 +610,84 @@ function VentasTab({ viajeId, readOnly, titulo, tasaTraslado }) {
 
     return (
         <div className="space-y-2.5">
-            <SectionHeader titulo={titulo} count={items.length} total={total} color="text-foreground">
-                {!readOnly && <AddButton onClick={() => showForm ? resetForm() : setShowForm(true)} open={showForm} />}
-            </SectionHeader>
+            <SectionHeader titulo={titulo} count={items.length} total={total} color="text-foreground" />
 
-            {showForm && (
-                <InlineForm onSubmit={handleSubmit} saving={saving} label={editId ? 'Guardar cambios' : 'Guardar venta'}>
-                    <ProductoField
-                        value={form.producto}
-                        onChange={v => {
-                            const mat = materiales.find(m => m.nombre === v);
-                            setForm(f => ({
-                                ...f,
-                                producto: v,
-                                cantidad: mat ? String(mat.restante) : f.cantidad,
-                                unidad: mat ? mat.unidad : f.unidad,
-                            }));
-                        }}
-                        productos={materiales} userId={userId}
-                        onCreated={() => reloadMateriales()}
-                        permitirCrear={false}
-                    />
-                    {materialSel && (
-                        <div className="col-span-2 card bg-stone-50 dark:bg-slate-800 px-3 py-2 text-sm space-y-0.5">
-                            <p className="text-stone-700 dark:text-slate-200">
-                                Cantidad comprada: <span className="font-medium tabular">{Number(materialSel.cantidad)} {materialSel.unidad}</span>
-                            </p>
-                            <p className="text-stone-500 dark:text-slate-400">
-                                Restante: <span className="font-medium tabular text-stone-700 dark:text-slate-200">{fmt(materialSel.restante)} {materialSel.unidad}</span>
-                            </p>
-                            <p className="text-stone-500 dark:text-slate-400">
-                                Costo de compras: <span className="font-medium tabular text-stone-700 dark:text-slate-200">${fmt(materialSel.costoCompras)}</span>
-                            </p>
-                            {Number(tasaTraslado) > 0 && materialSel.unidad === 'kg' && (
-                                <p className="text-stone-500 dark:text-slate-400">
-                                    Traslado (${fmt(tasaTraslado)}/kg): <span className="font-medium tabular text-stone-700 dark:text-slate-200">${fmt(materialSel.traslado)}</span>
-                                </p>
-                            )}
-                            <p className="text-stone-700 dark:text-slate-200 font-medium pt-0.5">
-                                Total estimado (costo): <span className="tabular">${fmt(materialSel.costoEstimado)}</span>
-                            </p>
-                        </div>
-                    )}
-                    <input required type="number" step="0.01" min="0" placeholder="Total recibido ($)" value={form.total_recibido} onChange={sf('total_recibido')} className="input-base col-span-2" />
-                    <input type="date" value={form.fecha} onChange={sf('fecha')} className="input-base" />
-                    <input placeholder="Notas (opcional)" value={form.notas} onChange={sf('notas')} className="input-base" />
-                </InlineForm>
+            {!readOnly && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {materiales.length === 0 ? (
+                        <p className="text-sm text-stone-400 dark:text-slate-500">No hay productos comprados en este viaje todavía.</p>
+                    ) : materiales.filter(m => m.restante > 0).length === 0 ? (
+                        <p className="text-sm text-stone-400 dark:text-slate-500">Ya vendiste todo lo comprado.</p>
+                    ) : materiales.filter(m => m.restante > 0).map(m => {
+                        const isOpen = abierto === m.nombre;
+                        return (
+                            <div key={m.nombre} className={`card ${isOpen ? 'ring-2 ring-primary/40' : ''}`}>
+                                <button
+                                    type="button"
+                                    onClick={() => (isOpen ? resetForm() : abrir(m))}
+                                    className="w-full flex items-center justify-between gap-2 text-left"
+                                >
+                                    <span className="text-sm font-semibold text-foreground">{m.nombre}</span>
+                                    <span className="text-xs text-muted-foreground tabular shrink-0">Restante: {fmt(m.restante)} {m.unidad}</span>
+                                </button>
+
+                                {isOpen && (
+                                    <form onSubmit={handleSubmit} className="mt-3 space-y-2.5">
+                                        {materialSel && (
+                                            <div className="card bg-stone-50 dark:bg-slate-800 px-3 py-2 text-sm space-y-0.5">
+                                                <p className="text-stone-700 dark:text-slate-200">
+                                                    Cantidad comprada: <span className="font-medium tabular">{Number(materialSel.cantidad)} {materialSel.unidad}</span>
+                                                </p>
+                                                <p className="text-stone-500 dark:text-slate-400">
+                                                    Restante: <span className="font-medium tabular text-stone-700 dark:text-slate-200">{fmt(materialSel.restante)} {materialSel.unidad}</span>
+                                                </p>
+                                                <p className="text-stone-500 dark:text-slate-400">
+                                                    Costo de compras: <span className="font-medium tabular text-stone-700 dark:text-slate-200">${fmt(materialSel.costoCompras)}</span>
+                                                </p>
+                                                {Number(tasaTraslado) > 0 && materialSel.unidad === 'kg' && (
+                                                    <p className="text-stone-500 dark:text-slate-400">
+                                                        Traslado (${fmt(tasaTraslado)}/kg): <span className="font-medium tabular text-stone-700 dark:text-slate-200">${fmt(materialSel.traslado)}</span>
+                                                    </p>
+                                                )}
+                                                <p className="text-stone-700 dark:text-slate-200 font-medium pt-0.5">
+                                                    Total estimado (costo): <span className="tabular">${fmt(materialSel.costoEstimado)}</span>
+                                                </p>
+                                            </div>
+                                        )}
+                                        <div className="space-y-2">
+                                            <div className="flex gap-2">
+                                                <input required type="number" step="0.01" min="0" placeholder="Precio recibido ($)" value={form.total_recibido} onChange={sf('total_recibido')} className="input-base flex-1" />
+                                                {materialSel && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setForm(f => ({ ...f, total_recibido: String(materialSel.costoEstimado) }))}
+                                                        title="Poner el total estimado (costo) calculado arriba"
+                                                        className="btn-secondary text-sm px-3 shrink-0"
+                                                        style={{ width: 'auto' }}
+                                                    >
+                                                        Usar estimado
+                                                    </button>
+                                                )}
+                                            </div>
+                                            {ajustarCantidad && (
+                                                <input required type="number" step="0.01" min="0.01" placeholder={`Cantidad (${m.unidad})`} value={form.cantidad} onChange={sf('cantidad')} className="input-base" />
+                                            )}
+                                            <input placeholder="Notas (opcional)" value={form.notas} onChange={sf('notas')} className="input-base" />
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button type="submit" disabled={saving} className="btn-primary text-sm py-2 flex-1" style={{ borderRadius: '8px' }}>
+                                                {saving ? 'Guardando...' : (editId ? 'Guardar cambios' : 'Guardar venta')}
+                                            </button>
+                                            <button type="button" onClick={resetForm} className="btn-secondary text-sm py-2 px-4" style={{ borderRadius: '8px' }}>
+                                                Cancelar
+                                            </button>
+                                        </div>
+                                    </form>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
             )}
 
             <div className="rounded-xl border border-border bg-muted p-2.5 space-y-2.5">
@@ -992,10 +1038,15 @@ function DivisasPanel({ viajeId, readOnly, onChange }) {
         onChange?.();
     }
 
+    const baseDivisa = divisas.find(d => d.es_base);
+
     return (
         <div>
             <div className="flex items-center justify-between gap-3 mb-2.5">
-                <h2 className="text-sm font-semibold text-stone-500 dark:text-slate-400 uppercase tracking-wider">Divisas del viaje</h2>
+                <div>
+                    <h2 className="text-sm font-semibold text-stone-500 dark:text-slate-400 uppercase tracking-wider">Divisas del viaje</h2>
+                    <p className="text-xs text-stone-400 dark:text-slate-500 mt-0.5">Base: {baseDivisa?.codigo ?? 'USD'}</p>
+                </div>
                 {!readOnly && <AddButton onClick={() => setAdding(a => !a)} open={adding} />}
             </div>
 
@@ -1007,49 +1058,56 @@ function DivisasPanel({ viajeId, readOnly, onChange }) {
                 </form>
             )}
 
-            <div className="rounded-xl border border-border bg-muted p-2.5 space-y-2">
+            <div className="flex flex-wrap gap-3">
                 {loading ? <Spinner />
-                    : divisas.map(d => {
-                        const pendiente = d.fija && !d.es_base && Number(d.tasa) === 1;
+                    : divisas.filter(d => !d.es_base).map(d => {
+                        const pendiente = d.fija && Number(d.tasa) === 1;
                         const editando = editId === d.id;
                         return (
-                            <div key={d.id} className={`card py-2.5 px-4 flex items-center gap-3 ${pendiente ? 'border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-950/20' : ''}`}>
-                                {editando ? (
-                                    <>
-                                        <span className="text-xs text-stone-400 dark:text-slate-500 shrink-0">1 USD =</span>
-                                        <input type="number" step="0.0001" min="0" placeholder="0" value={editVal.tasa} onChange={e => setEditVal(v => ({ ...v, tasa: e.target.value }))} className="input-base w-28" />
-                                        {d.fija
-                                            ? <span className="text-sm text-stone-600 dark:text-slate-300 shrink-0 w-24">{d.codigo}</span>
-                                            : <input value={editVal.codigo} onChange={e => setEditVal(v => ({ ...v, codigo: e.target.value }))} className="input-base w-24" />}
-                                        <div className="flex-1" />
-                                        <button onClick={saveEdit} className="btn-secondary text-sm px-3 shrink-0" style={{ width: 'auto' }}>Guardar</button>
-                                        <button onClick={() => setEditId(null)} className="text-stone-400 hover:text-stone-600 px-1 shrink-0 flex items-center"><X className="w-4 h-4" /></button>
-                                    </>
-                                ) : (
-                                    <>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium text-stone-800 dark:text-slate-200">
+                            <div key={d.id} className={`card py-3 px-4 flex items-start gap-3 min-w-[190px] ${pendiente ? 'border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-950/20' : ''}`}>
+                                <div className={`icon-chip shrink-0 ${pendiente ? 'text-amber-500' : 'text-primary'}`}>
+                                    <Coins className="w-4 h-4" />
+                                </div>
+                                <div className="flex flex-col gap-1.5 min-w-0">
+                                    {editando ? (
+                                        <>
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-xs text-stone-400 dark:text-slate-500 shrink-0">1 USD =</span>
+                                                <input type="number" step="0.0001" min="0" placeholder="0" value={editVal.tasa} onChange={e => setEditVal(v => ({ ...v, tasa: e.target.value }))} className="input-base w-20" />
+                                            </div>
+                                            {d.fija
+                                                ? <span className="text-sm text-stone-600 dark:text-slate-300">{d.codigo}</span>
+                                                : <input value={editVal.codigo} onChange={e => setEditVal(v => ({ ...v, codigo: e.target.value }))} className="input-base w-24" />}
+                                            <div className="flex items-center gap-2">
+                                                <button onClick={saveEdit} className="btn-secondary text-xs px-2.5 py-1 shrink-0" style={{ width: 'auto' }}>Guardar</button>
+                                                <button onClick={() => setEditId(null)} className="text-stone-400 hover:text-stone-600 px-1 shrink-0 flex items-center"><X className="w-4 h-4" /></button>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <p className="text-sm font-semibold text-stone-800 dark:text-slate-200 whitespace-nowrap">
                                                 1 USD = {pendiente
                                                     ? <span className="tabular text-stone-300 dark:text-slate-600">0</span>
                                                     : <span className="tabular">{fmt(d.tasa)}</span>
                                                 } {d.codigo}
-                                                {d.es_base && <span className="text-xs text-stone-400 dark:text-slate-500 ml-2 font-normal">(base)</span>}
-                                                {d.fija && !d.es_base && <span className="text-xs text-stone-400 dark:text-slate-500 ml-2 font-normal">(fija)</span>}
                                             </p>
-                                            {pendiente && (
-                                                <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">Configura la tasa del día</p>
+                                            {d.fija && !pendiente && (
+                                                <p className="text-xs text-stone-400 dark:text-slate-500">Divisa fija</p>
                                             )}
-                                        </div>
-                                        {!readOnly && !d.es_base && (
-                                            <div className="flex items-center gap-2 shrink-0">
-                                                <button onClick={() => startEdit(d)} className="text-xs font-medium px-2.5 py-1 rounded-md border border-foreground/30 text-foreground hover:bg-muted transition-colors">
-                                                    Poner cambio
-                                                </button>
-                                                {!d.fija && <DeleteBtn onClick={() => del(d)} />}
-                                            </div>
-                                        )}
-                                    </>
-                                )}
+                                            {pendiente && (
+                                                <p className="text-xs text-amber-600 dark:text-amber-400">Configura la tasa del día</p>
+                                            )}
+                                            {!readOnly && (
+                                                <div className="flex items-center gap-2">
+                                                    <button onClick={() => startEdit(d)} className="text-xs font-medium px-2.5 py-1 rounded-md border border-foreground/30 text-foreground hover:bg-muted transition-colors">
+                                                        Poner cambio
+                                                    </button>
+                                                    {!d.fija && <DeleteBtn onClick={() => del(d)} />}
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         );
                     })
