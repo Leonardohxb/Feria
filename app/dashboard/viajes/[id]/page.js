@@ -154,11 +154,14 @@ function useMaterialesViaje(viajeId, tasaTraslado) {
 
     const load = useCallback(async () => {
         if (!user) return;
-        const { data } = await supabase.from('compras')
-            .select('producto,unidad,cantidad,precio_unitario, viaje_divisas(tasa)')
-            .eq('viaje_id', viajeId);
+        const [cR, vR] = await Promise.all([
+            supabase.from('compras')
+                .select('producto,unidad,cantidad,precio_unitario, viaje_divisas(tasa)')
+                .eq('viaje_id', viajeId),
+            supabase.from('ventas').select('producto,cantidad').eq('viaje_id', viajeId),
+        ]);
         const map = new Map();
-        (data ?? []).forEach(c => {
+        (cR.data ?? []).forEach(c => {
             if (!c.producto) return;
             const precioUsd = montoUsd(1, c.precio_unitario, c.viaje_divisas?.tasa ?? 1);
             const costoUsd = Number(c.cantidad) * precioUsd;
@@ -176,15 +179,24 @@ function useMaterialesViaje(viajeId, tasaTraslado) {
                 });
             }
         });
+        // Cuánto se vendió ya de cada producto, para calcular el restante.
+        const vendidoPorProducto = new Map();
+        (vR.data ?? []).forEach(v => {
+            if (!v.producto) return;
+            vendidoPorProducto.set(v.producto, (vendidoPorProducto.get(v.producto) ?? 0) + Number(v.cantidad));
+        });
         const tasa = Number(tasaTraslado) || 0;
         const lista = [...map.values()].map(m => {
             const traslado = m.unidad === 'kg' ? m.cantidad * tasa : 0;
             const costoTotal = m.costoCompras + traslado;
+            const vendido = vendidoPorProducto.get(m.nombre) ?? 0;
             return {
                 ...m,
                 costoEstimado: costoTotal,
                 costoCompras: m.costoCompras,
                 traslado,
+                vendido,
+                restante: m.cantidad - vendido,
                 label: `${m.nombre} (${Number(m.cantidad)} ${m.unidad})`,
             };
         }).sort((a, b) => a.nombre.localeCompare(b.nombre));
@@ -597,7 +609,7 @@ function VentasTab({ viajeId, readOnly, titulo, tasaTraslado }) {
                             setForm(f => ({
                                 ...f,
                                 producto: v,
-                                cantidad: mat ? String(mat.cantidad) : f.cantidad,
+                                cantidad: mat ? String(mat.restante) : f.cantidad,
                                 unidad: mat ? mat.unidad : f.unidad,
                             }));
                         }}
@@ -608,7 +620,10 @@ function VentasTab({ viajeId, readOnly, titulo, tasaTraslado }) {
                     {materialSel && (
                         <div className="col-span-2 card bg-stone-50 dark:bg-slate-800 px-3 py-2 text-sm space-y-0.5">
                             <p className="text-stone-700 dark:text-slate-200">
-                                Cantidad: <span className="font-medium tabular">{Number(materialSel.cantidad)} {materialSel.unidad}</span>
+                                Cantidad comprada: <span className="font-medium tabular">{Number(materialSel.cantidad)} {materialSel.unidad}</span>
+                            </p>
+                            <p className="text-stone-500 dark:text-slate-400">
+                                Restante: <span className="font-medium tabular text-stone-700 dark:text-slate-200">{fmt(materialSel.restante)} {materialSel.unidad}</span>
                             </p>
                             <p className="text-stone-500 dark:text-slate-400">
                                 Costo de compras: <span className="font-medium tabular text-stone-700 dark:text-slate-200">${fmt(materialSel.costoCompras)}</span>
