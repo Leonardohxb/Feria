@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  FASES, FASE_META, faseIndex, faseAlcanzada, siguienteFase, avanceConfig, stepperState,
+  FASES, FASE_META, faseIndex, faseAlcanzada, siguienteFase, avanceConfig, stepperState, fasesAnteriores,
 } from '../lib/viajeFases.mjs';
 
 test('FASES define el orden preparacion → en_curso → ventas', () => {
@@ -63,4 +63,21 @@ test('stepperState: cada paso incluye su código de fase y label de FASE_META', 
   assert.deepEqual(s[0], { fase: 'preparacion', label: 'Preparación', status: 'current' });
   assert.deepEqual(s[1], { fase: 'en_curso', label: 'En curso', status: 'pending' });
   assert.deepEqual(s[2], { fase: 'ventas', label: 'Ventas', status: 'pending' });
+});
+
+test('fasesAnteriores: vacío en preparacion (no hay fase previa)', () => {
+  assert.deepEqual(fasesAnteriores('preparacion'), []);
+});
+
+test('fasesAnteriores: en en_curso, devuelve preparacion', () => {
+  assert.deepEqual(fasesAnteriores('en_curso'), [
+    { fase: 'preparacion', label: 'Preparación' },
+  ]);
+});
+
+test('fasesAnteriores: en ventas, devuelve preparacion y en_curso en orden', () => {
+  assert.deepEqual(fasesAnteriores('ventas'), [
+    { fase: 'preparacion', label: 'Preparación' },
+    { fase: 'en_curso', label: 'En curso' },
+  ]);
 });
