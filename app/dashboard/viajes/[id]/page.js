@@ -1291,8 +1291,19 @@ export default function ViajeDetallePage() {
                     <CostosTab viajeId={id} readOnly={isClosed} titulo="Costos iniciales" divisasVersion={divisasVersion} faseFiltro="preparacion" />
                 </div>
             )}
-            {vista === 'en_curso' && <CostosTab viajeId={id} readOnly={isClosed} titulo="Costos del viaje" divisasVersion={divisasVersion} faseFiltro="en_curso" />}
-            {vista === 'ventas' && <VentasTab viajeId={id} readOnly={isClosed} titulo="Ventas" tasaTraslado={viaje?.traslado_tasa_por_kg} />}
+            {vista === 'en_curso' && (
+                <div className="space-y-6">
+                    <CostosTab viajeId={id} readOnly={isClosed} titulo="Costos del viaje" divisasVersion={divisasVersion} faseFiltro="en_curso" />
+                    <ComprasTab viajeId={id} readOnly={true} titulo="Compras (referencia)" divisasVersion={divisasVersion} tasaTraslado={viaje?.traslado_tasa_por_kg} />
+                </div>
+            )}
+            {vista === 'ventas' && (
+                <div className="space-y-6">
+                    <VentasTab viajeId={id} readOnly={isClosed} titulo="Ventas" tasaTraslado={viaje?.traslado_tasa_por_kg} />
+                    <ComprasTab viajeId={id} readOnly={true} titulo="Compras (referencia)" divisasVersion={divisasVersion} tasaTraslado={viaje?.traslado_tasa_por_kg} />
+                    <ResumenTab viajeId={id} tasaTraslado={viaje?.traslado_tasa_por_kg} />
+                </div>
+            )}
             {vista === 'resumen' && <ResumenTab viajeId={id} tasaTraslado={viaje?.traslado_tasa_por_kg} />}
 
             {/* Acción de avance / cierre */}
