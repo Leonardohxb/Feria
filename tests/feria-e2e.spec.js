@@ -140,7 +140,7 @@ async function runDashboardTests(page) {
     if (isFirstVoyageTextVisible) {
         await page.click('button:has-text("Crear primer viaje")');
     } else {
-        await page.click('button:has-text("Nuevo viaje")');
+        await page.click('button:has-text("Planificar viaje")');
     }
 
     await expect(page).toHaveURL(/\/dashboard\/viajes\/nuevo/);

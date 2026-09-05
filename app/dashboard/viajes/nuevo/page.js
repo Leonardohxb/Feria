@@ -48,7 +48,7 @@ export default function NuevoViajePage() {
                 <ArrowLeft className="w-4 h-4" /> Mis viajes
             </button>
 
-            <h1 className="text-xl font-semibold text-stone-900 dark:text-slate-100 mb-6">Nuevo viaje</h1>
+            <h1 className="text-xl font-semibold text-stone-900 dark:text-slate-100 mb-6">Planificar viaje</h1>
 
             <div className="card">
                 <form onSubmit={handleSubmit} className="space-y-5" noValidate>

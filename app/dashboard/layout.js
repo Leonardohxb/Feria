@@ -24,7 +24,7 @@ export default function DashboardLayout({ children }) {
 
     const navItems = [
         { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, exact: true },
-        { name: 'Nuevo Viaje', path: '/dashboard/viajes/nuevo', icon: PlusCircle },
+        { name: 'Planificar Viaje', path: '/dashboard/viajes/nuevo', icon: PlusCircle },
         { name: 'Inventario', path: '/dashboard/inventario', icon: Package },
     ];
 
