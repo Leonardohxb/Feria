@@ -652,7 +652,7 @@ function VentasTab({ viajeId, readOnly, titulo, tasaTraslado }) {
 }
 
 /* ── Costos Tab ─────────────────────────────────────────── */
-function CostosTab({ viajeId, readOnly, titulo, divisasVersion }) {
+function CostosTab({ viajeId, readOnly, titulo, divisasVersion, faseFiltro }) {
     const [items, setItems] = useState([]);
     const [divisas, setDivisas] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -665,13 +665,13 @@ function CostosTab({ viajeId, readOnly, titulo, divisasVersion }) {
 
     const load = useCallback(async () => {
         const [cR, dR] = await Promise.all([
-            supabase.from('costos_adicionales').select('*, viaje_divisas(codigo,tasa,es_base)').eq('viaje_id', viajeId).order('fecha', { ascending: false }),
+            supabase.from('costos_adicionales').select('*, viaje_divisas(codigo,tasa,es_base)').eq('viaje_id', viajeId).eq('fase', faseFiltro).order('fecha', { ascending: false }),
             supabase.from('viaje_divisas').select('*').eq('viaje_id', viajeId).order('es_base', { ascending: false }).order('codigo'),
         ]);
         setItems(cR.data ?? []);
         setDivisas(dR.data ?? []);
         setLoading(false);
-    }, [viajeId]);
+    }, [viajeId, faseFiltro]);
 
     useEffect(() => { load(); }, [load, divisasVersion]);
 
@@ -696,8 +696,10 @@ function CostosTab({ viajeId, readOnly, titulo, divisasVersion }) {
             divisa_id: form.divisa_id || baseDivisa?.id || null,
             fecha: form.fecha,
         };
+        // La fase se completa sola al crear (no el usuario) y no se
+        // reescribe al editar, para no mover un costo de bucket.
         if (editId) await supabase.from('costos_adicionales').update(payload).eq('id', editId);
-        else await supabase.from('costos_adicionales').insert(payload);
+        else await supabase.from('costos_adicionales').insert({ ...payload, fase: faseFiltro });
         setSaving(false);
         resetForm();
         load();
@@ -1071,7 +1073,7 @@ function useFaseResumen(viaje, refreshKey) {
                 ],
             });
         } else if (fase === 'en_curso') {
-            const { data } = await supabase.from('costos_adicionales').select('monto, viaje_divisas(tasa)').eq('viaje_id', viajeId);
+            const { data } = await supabase.from('costos_adicionales').select('monto, viaje_divisas(tasa)').eq('viaje_id', viajeId).eq('fase', 'en_curso');
             const costos = data ?? [];
             const total = costos.reduce((s, i) => s + montoUsd(1, i.monto, i.viaje_divisas?.tasa ?? 1), 0);
             const dias = fechaInicio
@@ -1271,10 +1273,10 @@ export default function ViajeDetallePage() {
                 <div className="space-y-6">
                     <DivisasPanel viajeId={id} readOnly={isClosed} onChange={() => setDivisasVersion(v => v + 1)} />
                     <ComprasTab viajeId={id} readOnly={isClosed} titulo="Compras" divisasVersion={divisasVersion} tasaTraslado={viaje?.traslado_tasa_por_kg} onTasaChange={t => setViaje(v => v ? { ...v, traslado_tasa_por_kg: t } : v)} />
-                    <CostosTab viajeId={id} readOnly={isClosed} titulo="Costos iniciales" divisasVersion={divisasVersion} />
+                    <CostosTab viajeId={id} readOnly={isClosed} titulo="Costos iniciales" divisasVersion={divisasVersion} faseFiltro="preparacion" />
                 </div>
             )}
-            {vista === 'en_curso' && <CostosTab viajeId={id} readOnly={isClosed} titulo="Costos del viaje" divisasVersion={divisasVersion} />}
+            {vista === 'en_curso' && <CostosTab viajeId={id} readOnly={isClosed} titulo="Costos del viaje" divisasVersion={divisasVersion} faseFiltro="en_curso" />}
             {vista === 'ventas' && <VentasTab viajeId={id} readOnly={isClosed} titulo="Ventas" tasaTraslado={viaje?.traslado_tasa_por_kg} />}
             {vista === 'resumen' && <ResumenTab viajeId={id} tasaTraslado={viaje?.traslado_tasa_por_kg} />}
 
